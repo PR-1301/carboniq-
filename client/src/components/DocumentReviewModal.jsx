@@ -709,8 +709,35 @@ export function DocumentReviewModal({
                     </div>
                   </div>
 
+                  {/* Layer 2 EEIO Breakdown (Direct vs Upstream) */}
+                  {suggestedEmissions.directKg !== undefined && (
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono p-2 rounded-lg bg-slate-950/60 border border-slate-800">
+                      <div className="flex flex-col">
+                        <span className="text-slate-500 text-[10px]">Direct Sector Footprint:</span>
+                        <span className="text-cyan-300 font-semibold">{suggestedEmissions.directKg.toLocaleString()} kg CO₂e</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-slate-500 text-[10px]">Upstream Leontief Tier N:</span>
+                        <span className="text-emerald-300 font-semibold">{suggestedEmissions.upstreamKg.toLocaleString()} kg CO₂e</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Layer 3 LCA Refinement Hotspot Alert */}
+                  {suggestedEmissions.isHotspotCandidate && (
+                    <div className="flex items-start space-x-2 text-[11px] text-amber-300 bg-amber-950/40 border border-amber-600/40 p-2.5 rounded-lg">
+                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-amber-200">Layer 3 LCA Refinement Hotspot Candidate</div>
+                        <div className="text-[10px] text-amber-300/80 mt-0.5 leading-snug">
+                          This spend item exceeds Scope 3 Pareto thresholds. Replace financial proxy with supplier EPD (Environmental Product Declaration) or Bill of Materials when available.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Sustainability Insight / Tip */}
-                  {suggestedEmissions.insights && (
+                  {suggestedEmissions.insights && !suggestedEmissions.isHotspotCandidate && (
                     <div className="flex items-start space-x-2 text-[11px] text-emerald-300/90 bg-emerald-950/20 border border-emerald-800/30 px-2.5 py-1.5 rounded-lg">
                       <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                       <span className="leading-snug">{suggestedEmissions.insights}</span>

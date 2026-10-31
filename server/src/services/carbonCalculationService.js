@@ -1,4 +1,5 @@
 import { EmissionFactor } from '../models/EmissionFactor.js';
+import { calculateEEIOEmissions } from './eeioService.js';
 
 /**
  * Standard Factors and Methods defined in CARBON_EMISSION_CALCULATION_METHODS.md
@@ -517,28 +518,64 @@ export async function calculateCarbonEmissions({
   }
 
   // ==========================================
-  // CASE 5: SUPPLIER INVOICE / SPEND-BASED (Scope 3)
-  // Method 4: Spend-Based MRIO Multipliers
+  // CASE 5: SUPPLIER INVOICE / FINANCIAL SPEND (Scope 3)
+  // Layer 2: EXIOBASE 3.11.2 (MR-EEIO Leontief Matrix Fallback)
   // ==========================================
   const spend = spendAmount || numQuantity;
-  const factor = STANDARD_FACTORS.SPEND_MULTIPLIERS.INR_DEFAULT; // 0.00025 kg CO2e / INR
-  const emissionsKg = spend * factor;
-  const emissionsTonnes = emissionsKg / 1000;
+  try {
+    const eeioResult = await calculateEEIOEmissions({
+      spendAmount: spend,
+      currency: 'INR',
+      supplierName,
+      description,
+      hsnCode: categoryData?.hsnCode,
+      sectorCode: categoryData?.sectorCode,
+      category: normCategory,
+    });
 
+    if (eeioResult && eeioResult.isValid) {
+      return {
+        emissionsKg: eeioResult.emissionsKg,
+        emissionsTonnes: eeioResult.emissionsTonnes,
+        factorUsed: eeioResult.factorUsed,
+        factorUnit: eeioResult.factorUnit,
+        activityUnit: 'INR',
+        methodology: `Layer 2: ${eeioResult.method} [Sector: ${eeioResult.sectorName}]`,
+        scope: 'SCOPE_3',
+        source: 'EXIOBASE 3.11.2 (MR-EEIO 2024)',
+        calculationFormula: eeioResult.calculationFormula,
+        isNegativeOffset: false,
+        tier: 'Layer 2: EXIOBASE Leontief EEIO',
+        factorKey: eeioResult.sectorCode,
+        factorName: eeioResult.sectorName,
+        uncertaintyRange: eeioResult.uncertaintyRange,
+        isHotspotCandidate: eeioResult.isHotspotCandidate,
+        directEmissionsKg: eeioResult.directEmissionsKg,
+        upstreamEmissionsKg: eeioResult.upstreamEmissionsKg,
+        recommendation: eeioResult.recommendation,
+      };
+    }
+  } catch (eeioErr) {
+    console.error('Error in EXIOBASE calculation, using fallback:', eeioErr);
+  }
+
+  // Generic fallback if EXIOBASE sector lookup could not resolve
+  const fallbackFactor = STANDARD_FACTORS.SPEND_MULTIPLIERS.INR_DEFAULT;
+  const fallbackEmKg = spend * fallbackFactor;
   return {
-    emissionsKg: Math.round(emissionsKg * 100) / 100,
-    emissionsTonnes: Math.round(emissionsTonnes * 1000) / 1000,
-    factorUsed: factor,
-    factorUnit: 'kg CO2e/₹',
+    emissionsKg: Math.round(fallbackEmKg * 100) / 100,
+    emissionsTonnes: Math.round((fallbackEmKg / 1000) * 1000) / 1000,
+    factorUsed: fallbackFactor,
+    factorUnit: 'kg CO₂e/₹',
     activityUnit: 'INR',
-    methodology: 'Method 4: Spend-Based MRIO (Multiregional Input-Output) Multipliers',
+    methodology: 'Layer 2: Spend-Based EEIO Fallback',
     scope: 'SCOPE_3',
-    source: 'CARBON_EMISSION_CALCULATION_METHODS.md (Method 4 / Trendl et al. 2022)',
-    calculationFormula: `Invoice Spend (₹${spend.toLocaleString('en-IN')}) × MRIO Spend Multiplier (${factor} kg CO₂e/₹) = ${emissionsKg.toFixed(2)} kg CO₂e (${emissionsTonnes.toFixed(3)} tCO₂e)`,
+    source: 'EXIOBASE 3.11.2 Baseline',
+    calculationFormula: `Invoice Spend (₹${spend.toLocaleString('en-IN')}) × EEIO Spend Multiplier (${fallbackFactor} kg CO₂e/₹) = ${fallbackEmKg.toFixed(2)} kg CO₂e`,
     isNegativeOffset: false,
-    tier: 'Method 4 (Spend-Based)',
+    tier: 'Layer 2: Spend-Based EEIO',
     factorKey: 'procurement-spend-mrio-in',
     factorName: 'General Procurement Spend Factor',
-    recommendation: 'Requesting activity quantities or supplier-specific product carbon footprints (PCF) yields Tier 1 precision.',
+    recommendation: 'Requesting itemized physical activity data or supplier EPDs enables Layer 3 primary precision.',
   };
 }
