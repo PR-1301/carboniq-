@@ -108,10 +108,12 @@ export async function extractRawContent(filePath, mimeType, originalFileName) {
   // 4. Excel Documents (XLSX, XLS)
   if (['.xlsx', '.xls'].includes(ext) || mimeType.includes('spreadsheetml')) {
     try {
-      const workbook = XLSX.readFile(filePath);
+      const xlsxLib = XLSX.default || XLSX;
+      const buf = fs.readFileSync(filePath);
+      const workbook = xlsxLib.read(buf, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const records = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      const records = xlsxLib.utils.sheet_to_json(sheet, { defval: '' });
 
       const text = records
         .map((row, i) => `Row ${i + 1}: ${Object.entries(row).map(([k, v]) => `${k}=${v}`).join(', ')}`)
@@ -146,40 +148,213 @@ export async function extractRawContent(filePath, mimeType, originalFileName) {
 }
 
 /**
+ * Infers category, GHG Protocol scope, and specific activity subtypes for a spreadsheet row
+ */
+export function inferRowCategoryAndScope(rowText = '', explicitCat = '', explicitScope = '', explicitUnit = '') {
+  const combined = `${explicitCat} ${explicitScope} ${rowText} ${explicitUnit}`.toLowerCase();
+
+  // 1. Check explicit Scope if supplied in a column
+  let scope = null;
+  if (/scope\s*1\b|^1$|direct/i.test(explicitScope.trim())) scope = 'SCOPE_1';
+  else if (/scope\s*2\b|^2$|indirect\s*energy|electricity/i.test(explicitScope.trim())) scope = 'SCOPE_2';
+  else if (/scope\s*3\b|^3$|value\s*chain|upstream|freight|spend/i.test(explicitScope.trim())) scope = 'SCOPE_3';
+
+  let category = 'SUPPLIER_INVOICE';
+  let fuelType = '';
+  let transportMode = '';
+  let wasteType = '';
+  let disposalMethod = '';
+
+  // Check Fuel / Scope 1
+  if (
+    /fuel/i.test(explicitCat) ||
+    /diesel|hsd|petrol|gasoline|lpg|cng|furnace\s*oil|fuel\s*oil|natural\s*gas|png|kerosene|coal|generator\s*fuel|dg\s*set/i.test(combined)
+  ) {
+    category = 'FUEL';
+    if (!scope) scope = 'SCOPE_1';
+    if (/diesel|hsd/i.test(combined)) fuelType = 'Diesel';
+    else if (/petrol|gasoline/i.test(combined)) fuelType = 'Petrol';
+    else if (/cng|compressed\s*natural/i.test(combined)) fuelType = 'CNG';
+    else if (/lpg|liquefied\s*petroleum/i.test(combined)) fuelType = 'LPG';
+    else if (/natural\s*gas|png/i.test(combined)) fuelType = 'Natural Gas (CNG)';
+    else if (/furnace\s*oil|fuel\s*oil/i.test(combined)) fuelType = 'Heavy Fuel Oil';
+    else fuelType = 'Diesel';
+  }
+  // Check Electricity / Scope 2
+  else if (
+    /electric/i.test(explicitCat) ||
+    /electricity|electric|power|grid|discom|kwh|mwh|units\s*consumed|bescom|tata\s*power|adani\s*electricity|msedcl|cesc/i.test(combined)
+  ) {
+    category = 'ELECTRICITY';
+    if (!scope) scope = 'SCOPE_2';
+  }
+  // Check Waste / Scope 3
+  else if (
+    /waste/i.test(explicitCat) ||
+    /waste|scrap|recycle|recycled|landfill|compost|effluent|hazardous\s*waste|scrap\s*metal|plastic\s*waste/i.test(combined)
+  ) {
+    category = 'WASTE';
+    if (!scope) scope = 'SCOPE_3';
+    if (/recycl/i.test(combined)) disposalMethod = 'Recycled';
+    else if (/landfill/i.test(combined)) disposalMethod = 'Landfill';
+    else if (/compost/i.test(combined)) disposalMethod = 'Composted';
+    else disposalMethod = 'Recycled';
+
+    if (/scrap|metal/i.test(combined)) wasteType = 'Scrap Metal';
+    else if (/hazard/i.test(combined)) wasteType = 'Hazardous';
+    else if (/cardboard|paper/i.test(combined)) wasteType = 'Cardboard';
+    else wasteType = 'General Municipal Waste';
+  }
+  // Check Transportation / Logistics / Scope 3
+  else if (
+    /transport|freight|logistics/i.test(explicitCat) ||
+    /freight|transport|logistics|courier|delivery|truck|tkm|tonne-km|cargo|air\s*freight|sea\s*freight|rail/i.test(combined)
+  ) {
+    category = 'TRANSPORTATION';
+    if (!scope) scope = 'SCOPE_3';
+    if (/air/i.test(combined)) transportMode = 'Air Freight';
+    else if (/sea|ship/i.test(combined)) transportMode = 'Sea Freight';
+    else if (/rail/i.test(combined)) transportMode = 'Rail';
+    else transportMode = 'Road / Truck';
+  }
+  // Fallback to Supplier Spend / Scope 3
+  else {
+    category = 'SUPPLIER_INVOICE';
+    if (!scope) scope = 'SCOPE_3';
+  }
+
+  return {
+    category,
+    scope: scope || 'SCOPE_3',
+    fuelType,
+    transportMode,
+    wasteType,
+    disposalMethod,
+  };
+}
+
+/**
+ * Extracts and classifies all line items from tabular records (CSV / Excel)
+ */
+export function extractTabularLineItems(rawRecords, fileName = '') {
+  if (!Array.isArray(rawRecords) || rawRecords.length === 0) {
+    return { lineItems: [], distinctScopes: [], isMultiScope: false };
+  }
+
+  const getColVal = (row, candidates) => {
+    const rowKeys = Object.keys(row || {});
+    const matchedKey = rowKeys.find((k) => {
+      const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return candidates.some((cand) => cleanK.includes(cand.toLowerCase().replace(/[^a-z0-9]/g, '')));
+    });
+    return matchedKey ? row[matchedKey] : null;
+  };
+
+  const lineItems = rawRecords.map((row, idx) => {
+    const rowNum = idx + 1;
+    const explicitCat = String(getColVal(row, ['category', 'activitytype', 'cat']) || '').trim();
+    const explicitScope = String(getColVal(row, ['scope', 'ghgscope']) || '').trim();
+    const explicitUnit = String(getColVal(row, ['unit', 'uom', 'metric']) || '').trim();
+    const explicitSupplier = String(getColVal(row, ['supplier', 'vendor', 'party', 'provider', 'contractor', 'biller', 'name']) || '').trim();
+    const explicitDesc = String(getColVal(row, ['description', 'item', 'details', 'particulars', 'activity', 'memo']) || '').trim();
+    const dateVal = getColVal(row, ['date', 'time', 'period', 'month', 'billdate', 'txndate', 'invoicedate']);
+    
+    const qtyVal = parseFloat(getColVal(row, ['quantity', 'qty', 'volume', 'consumption', 'usage', 'distance', 'weight', 'litres', 'kwh']));
+    const spendVal = parseFloat(getColVal(row, ['amount', 'spend', 'total', 'inr', 'cost', 'price', 'value']));
+
+    const rowValues = Object.entries(row)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(' ');
+
+    const inference = inferRowCategoryAndScope(
+      `${explicitDesc} ${rowValues}`,
+      explicitCat,
+      explicitScope,
+      explicitUnit
+    );
+
+    let finalQty = !isNaN(qtyVal) ? qtyVal : (!isNaN(spendVal) ? spendVal : 0);
+    let finalUnit = explicitUnit;
+    if (!finalUnit) {
+      if (inference.category === 'ELECTRICITY') finalUnit = 'kWh';
+      else if (inference.category === 'FUEL') finalUnit = 'Liters';
+      else if (inference.category === 'TRANSPORTATION') finalUnit = 'km';
+      else if (inference.category === 'WASTE') finalUnit = 'kg';
+      else finalUnit = !isNaN(spendVal) ? 'INR' : 'units';
+    }
+
+    const categoryData = {
+      fuelType: String(getColVal(row, ['fueltype', 'fuel']) || inference.fuelType || '').trim(),
+      transportMode: String(getColVal(row, ['transportmode', 'mode', 'vehicle']) || inference.transportMode || '').trim(),
+      wasteType: String(getColVal(row, ['wastetype', 'waste']) || inference.wasteType || '').trim(),
+      disposalMethod: String(getColVal(row, ['disposalmethod', 'disposal', 'method']) || inference.disposalMethod || '').trim(),
+      spendAmount: !isNaN(spendVal) ? spendVal : (inference.category === 'SUPPLIER_INVOICE' && !isNaN(qtyVal) ? qtyVal : null),
+      currency: 'INR',
+    };
+
+    const rowErrors = [];
+    if (finalQty == null || finalQty <= 0) {
+      rowErrors.push(`Missing or non-positive quantity / spend value`);
+    }
+
+    return {
+      rowIndex: idx,
+      rowNumber: rowNum,
+      rawRow: row,
+      category: inference.category,
+      scope: inference.scope,
+      activityDate: parseDate(dateVal) || new Date(),
+      quantity: finalQty,
+      unit: finalUnit,
+      supplierName: explicitSupplier || '',
+      description: explicitDesc || `Row ${rowNum} activity from ${fileName}`,
+      categoryData,
+      emissions: {
+        emissionsKg: 0,
+        emissionsTonnes: 0,
+        factorUsed: null,
+        factorUnit: '',
+        methodology: '',
+        source: '',
+        calculationFormula: '',
+        isNegativeOffset: false,
+        tier: '',
+        directEmissionsKg: null,
+        upstreamEmissionsKg: null,
+      },
+      validationErrors: rowErrors,
+      isIncluded: rowErrors.length === 0,
+    };
+  });
+
+  const distinctScopes = [...new Set(lineItems.map((li) => li.scope).filter(Boolean))];
+  const isMultiScope = distinctScopes.length > 1;
+
+  return {
+    lineItems,
+    distinctScopes,
+    isMultiScope,
+  };
+}
+
+/**
  * Parses structured candidate fields from extracted text or table records
  */
 export function extractStructuredFields(text = '', documentType = 'UNKNOWN', fileName = '', rawRecords = null) {
-  // If tabular records are provided, check first row or dominant fields
+  // If tabular records are provided, extract batch summary fields
   if (rawRecords && Array.isArray(rawRecords) && rawRecords.length > 0) {
-    const first = rawRecords[0];
-    const findCol = (keys) => {
-      const foundKey = Object.keys(first).find((k) =>
-        keys.some((cand) => k.toLowerCase().includes(cand.toLowerCase()))
-      );
-      return foundKey ? first[foundKey] : null;
-    };
-
-    const dateVal = findCol(['date', 'time', 'period']);
-    const qtyVal = parseFloat(findCol(['quantity', 'qty', 'amount', 'consumption', 'usage', 'litres', 'kwh', 'distance']));
-    const unitVal = findCol(['unit', 'uom']) || (findCol(['kwh']) ? 'kWh' : findCol(['liter']) ? 'Liters' : '');
-    const supplierVal = findCol(['supplier', 'vendor', 'provider', 'contractor']);
-    const descVal = findCol(['description', 'item', 'details', 'particulars', 'activity']);
-
-    const category = inferCategoryFromDocType(documentType, text);
+    const { lineItems, isMultiScope, distinctScopes } = extractTabularLineItems(rawRecords, fileName);
+    const totalQuantity = lineItems.reduce((acc, li) => acc + (li.quantity || 0), 0);
+    const first = lineItems[0] || {};
 
     return {
-      category,
-      activityDate: parseDate(dateVal),
-      quantity: isNaN(qtyVal) ? null : qtyVal,
-      unit: unitVal || '',
-      supplierName: supplierVal ? String(supplierVal).trim() : '',
-      description: descVal ? String(descVal).trim() : `Extracted from spreadsheet (${rawRecords.length} records)`,
-      categoryData: {
-        fuelType: findCol(['fuel', 'fuel_type']) || '',
-        transportMode: findCol(['mode', 'transport', 'vehicle']) || '',
-        wasteType: findCol(['waste', 'waste_type']) || '',
-        disposalMethod: findCol(['disposal', 'method']) || '',
-      },
+      category: isMultiScope ? 'SUPPLIER_INVOICE' : (first.category || 'SUPPLIER_INVOICE'),
+      activityDate: first.activityDate || new Date(),
+      quantity: totalQuantity > 0 ? totalQuantity : first.quantity,
+      unit: first.unit || 'units',
+      supplierName: first.supplierName || 'Multiple Counterparties',
+      description: `Consolidated log with ${lineItems.length} records (${distinctScopes.join(', ')})`,
+      categoryData: first.categoryData || {},
     };
   }
 
