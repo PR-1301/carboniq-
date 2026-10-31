@@ -31,6 +31,18 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
   const [rememberMe, setRememberMe] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   const [activePhraseIdx, setActivePhraseIdx] = useState(0);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [authorizingCompany, setAuthorizingCompany] = useState(null);
+
+  const triggerAuthTransition = (company, token) => {
+    setAuthorizingCompany(company);
+    setIsAuthorizing(true);
+    setTimeout(() => {
+      if (onAuthenticated) {
+        onAuthenticated(company, token);
+      }
+    }, 850);
+  };
 
   // Lock background body scroll when modal is mounted to prevent double scrollbars
   useEffect(() => {
@@ -199,9 +211,7 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
         throw new Error(res.error || 'Invalid verification code');
       }
 
-      if (onAuthenticated) {
-        onAuthenticated(res.company, res.token);
-      }
+      triggerAuthTransition(res.company, res.token);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -249,9 +259,7 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
         throw new Error(res.error || 'Sign in failed');
       }
 
-      if (onAuthenticated) {
-        onAuthenticated(res.company, res.token);
-      }
+      triggerAuthTransition(res.company, res.token);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -889,6 +897,33 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
           <span>MoEFCC Verified</span>
         </div>
       </footer>
+
+      {/* Holographic Calibration Transition on Successful Authentication */}
+      {isAuthorizing && (
+        <div className="fixed inset-0 z-50 bg-[#06110d]/95 backdrop-blur-3xl flex flex-col items-center justify-center animate-page-enter">
+          <div className="relative flex items-center justify-center mb-8">
+            <div className="w-32 h-32 rounded-full border-2 border-dashed border-[#b5f568]/40 animate-spin-slow" />
+            <div className="w-24 h-24 rounded-full border border-[#62dd9e]/60 animate-spin-reverse absolute" />
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#b5f568] to-[#62dd9e] flex items-center justify-center shadow-[0_0_36px_rgba(181,245,104,0.6)] absolute">
+              <Sparkles className="w-7 h-7 text-[#07130f] animate-pulse" />
+            </div>
+          </div>
+          <div className="text-center space-y-2.5 max-w-md px-4">
+            <span className="text-[10px] font-mono uppercase px-3 py-1 rounded-full bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/30 font-semibold tracking-wider">
+              Sovereign Space Authorized
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Initializing Workspace
+            </h3>
+            <p className="text-xs text-[#9aada2] font-mono leading-relaxed">
+              Calibrating statutory corporate climate ledger for {authorizingCompany?.companyName || 'your enterprise'}...
+            </p>
+            <div className="w-48 h-1.5 mx-auto rounded-full bg-[#121e1a] overflow-hidden mt-4">
+              <div className="h-full bg-gradient-to-r from-[#b5f568] to-[#62dd9e] animate-pulse rounded-full w-full" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

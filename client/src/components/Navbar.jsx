@@ -43,6 +43,17 @@ export function Navbar({
     }
   };
 
+  const handleWorkspaceTabClick = (tab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+    setTimeout(() => {
+      const elem = document.getElementById('workspace-tabs-content');
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+  };
+
   return (
     <header className="border-b border-[#b4ffcd]/12 bg-[#06110d]/85 backdrop-blur-2xl sticky top-0 z-50 font-sans selection:bg-[#b5f568] selection:text-[#102000]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -126,40 +137,40 @@ export function Navbar({
               <nav className="hidden md:flex space-x-1.5 pl-4 border-l border-[#b4ffcd]/10">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('DOCUMENTS')}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                  onClick={() => handleWorkspaceTabClick('DOCUMENTS')}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
                     activeTab === 'DOCUMENTS'
-                      ? 'bg-[#121e1a] text-[#62dd9e] border border-[#62dd9e]/40 shadow-sm'
+                      ? 'bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/40 shadow-[0_0_14px_rgba(181,245,104,0.22)] scale-[1.02]'
                       : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
                   }`}
                 >
-                  <FileText className="w-3.5 h-3.5" />
+                  <FileText className={`w-3.5 h-3.5 ${activeTab === 'DOCUMENTS' ? 'text-[#b5f568]' : 'text-slate-400'}`} />
                   <span>Documents</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setActiveTab('ACTIVITIES')}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                  onClick={() => handleWorkspaceTabClick('ACTIVITIES')}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
                     activeTab === 'ACTIVITIES'
-                      ? 'bg-[#121e1a] text-[#62dd9e] border border-[#62dd9e]/40 shadow-sm'
+                      ? 'bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/40 shadow-[0_0_14px_rgba(181,245,104,0.22)] scale-[1.02]'
                       : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5" />
+                  <Layers className={`w-3.5 h-3.5 ${activeTab === 'ACTIVITIES' ? 'text-[#b5f568]' : 'text-slate-400'}`} />
                   <span>Verified Activities</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setActiveTab('MANUAL_ENTRY')}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                  onClick={() => handleWorkspaceTabClick('MANUAL_ENTRY')}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
                     activeTab === 'MANUAL_ENTRY'
-                      ? 'bg-[#121e1a] text-[#62dd9e] border border-[#62dd9e]/40 shadow-sm'
+                      ? 'bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/40 shadow-[0_0_14px_rgba(181,245,104,0.22)] scale-[1.02]'
                       : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
                   }`}
                 >
-                  <PlusCircle className="w-3.5 h-3.5" />
+                  <PlusCircle className={`w-3.5 h-3.5 ${activeTab === 'MANUAL_ENTRY' ? 'text-[#b5f568]' : 'text-slate-400'}`} />
                   <span>Manual Entry</span>
                 </button>
               </nav>
@@ -168,20 +179,8 @@ export function Navbar({
 
           {/* Right Action Cluster */}
           <div className="flex items-center space-x-3 text-xs">
-            {/* Database indicator */}
-            <div
-              className={`hidden xl:flex items-center space-x-1.5 px-3 py-1 rounded-full border text-[11px] font-mono ${
-                isDbConnected
-                  ? 'bg-[#0b1b14] border-[#62dd9e]/30 text-[#62dd9e]'
-                  : 'bg-red-950/40 border-red-700/40 text-red-300'
-              }`}
-            >
-              <Database className="w-3 h-3" />
-              <span>DB: {isDbConnected ? 'Active' : 'Offline'}</span>
-            </div>
-
-            {/* Emission Factors Navigator */}
-            {onNavigate && (
+            {/* Emission Factors Navigator (available on landing or dataset page, hidden in workspace) */}
+            {onNavigate && (!company || currentRoute !== 'WORKSPACE') && (
               <button
                 type="button"
                 onClick={() =>
@@ -255,58 +254,95 @@ export function Navbar({
             )}
 
             {/* Mobile Hamburger Menu Toggle */}
-            {currentRoute === 'LANDING' && (
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] transition"
-                aria-label="Toggle navigation menu"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] transition"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Mobile Drawer */}
-      {mobileMenuOpen && currentRoute === 'LANDING' && (
+      {mobileMenuOpen && (
         <div className="lg:hidden border-t border-[#b4ffcd]/10 bg-[#06110d]/95 backdrop-blur-2xl px-4 py-4 space-y-2">
-          <button
-            type="button"
-            onClick={() => scrollToAnchor('product-dashboard')}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
-          >
-            Platform Console
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToAnchor('how-it-works')}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
-          >
-            How It Works
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToAnchor('interactive-simulator')}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
-          >
-            Interactive Simulator
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToAnchor('scope-mechanics')}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
-          >
-            Scope Mechanics
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToAnchor('capabilities')}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
-          >
-            Capabilities
-          </button>
+          {currentRoute === 'LANDING' && (
+            <>
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('product-dashboard')}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+              >
+                Platform Console
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('how-it-works')}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+              >
+                How It Works
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('interactive-simulator')}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+              >
+                Interactive Simulator
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('scope-mechanics')}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+              >
+                Scope Mechanics
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToAnchor('capabilities')}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+              >
+                Capabilities
+              </button>
+            </>
+          )}
+
+          {company && currentRoute === 'WORKSPACE' && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => handleWorkspaceTabClick('DOCUMENTS')}
+                className={`w-full flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium ${
+                  activeTab === 'DOCUMENTS' ? 'bg-[#121e1a] text-[#b5f568]' : 'text-slate-300 hover:bg-white/[0.06]'
+                }`}
+              >
+                <FileText className="w-4 h-4 text-[#b5f568]" />
+                <span>Documents Registry</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleWorkspaceTabClick('ACTIVITIES')}
+                className={`w-full flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium ${
+                  activeTab === 'ACTIVITIES' ? 'bg-[#121e1a] text-[#b5f568]' : 'text-slate-300 hover:bg-white/[0.06]'
+                }`}
+              >
+                <Layers className="w-4 h-4 text-[#b5f568]" />
+                <span>Verified Activities</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleWorkspaceTabClick('MANUAL_ENTRY')}
+                className={`w-full flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium ${
+                  activeTab === 'MANUAL_ENTRY' ? 'bg-[#121e1a] text-[#b5f568]' : 'text-slate-300 hover:bg-white/[0.06]'
+                }`}
+              >
+                <PlusCircle className="w-4 h-4 text-[#b5f568]" />
+                <span>Manual Entry</span>
+              </button>
+            </div>
+          )}
           {!company && onOpenAuth && (
             <div className="pt-3 border-t border-[#b4ffcd]/10 flex flex-col gap-2">
               <button

@@ -316,141 +316,182 @@ export function App() {
       )}
 
       {/* Main Workspace Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Onboarding View for Newly Registered Company */}
-        {!company.hasCompletedOnboarding ? (
-          <div className="space-y-6">
-            <div className="glass-card p-6 md:p-8 rounded-2xl border border-emerald-500/30 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
-                      Step 2: Operational Data Ingestion
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">Currency: ₹ INR</span>
-                  </div>
-                  <h1 className="text-2xl md:text-3xl font-extrabold text-white mt-2 tracking-tight">
-                    Welcome, {company.companyName}
-                  </h1>
-                  <p className="text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
-                    Upload your baseline operational records—electricity bills, generator fuel slips, logistics manifests, and audit spreadsheets—to initiate automated activity parsing and statutory emissions accounting.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCompleteOnboarding}
-                  className="flex items-center space-x-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/60 transition shrink-0"
-                >
-                  <span>Complete Onboarding & Enter Workspace</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-page-enter">
+        {/* Stagger 1: Enterprise SME Telemetry Header Bar */}
+        <div className="telemetry-card p-5 sm:p-6 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-[#b4ffcd]/18 bg-[#0b1b14]/90 backdrop-blur-2xl shadow-xl relative overflow-hidden animate-stagger-1">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#b5f568]/40 to-transparent" />
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-2xl bg-[#16a36a]/20 border border-[#62dd9e]/40 flex items-center justify-center text-[#62dd9e] font-black text-xl shadow-[0_0_20px_rgba(98,221,158,0.25)]">
+              <Building2 className="w-6 h-6 text-[#b5f568]" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2.5">
+                <h1 className="font-extrabold text-white text-lg sm:text-xl tracking-tight">
+                  {company.companyName}
+                </h1>
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/30 font-semibold">
+                  {company.businessSize}
+                </span>
+              </div>
+              <div className="text-[#9aada2] flex flex-wrap items-center gap-2 font-mono text-xs mt-1">
+                <span className="text-[#62dd9e] font-semibold">{company.industryType}</span>
+                <span>&bull;</span>
+                <span className="text-white font-medium">Accounting: ₹ INR</span>
+                {company.gstin && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="text-[#7dd9a3]">GSTIN: {company.gstin}</span>
+                  </>
+                )}
               </div>
             </div>
+          </div>
 
-            {/* Ingestion Upload Zone */}
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowWorkspaceUpload(!showWorkspaceUpload)}
+              className="flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-mono font-semibold bg-gradient-to-r from-[#b5f568] to-[#9ad84f] text-[#07130f] hover:shadow-[0_0_20px_rgba(181,245,104,0.4)] transition-all active:scale-95 shadow-md cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{showWorkspaceUpload ? 'Hide Ingestion Zone' : 'Ingest Documents'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Stagger 2: Telemetry Metrics Summary KPI Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-2">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('DOCUMENTS');
+              setTimeout(() => {
+                const elem = document.getElementById('workspace-tabs-content');
+                if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            }}
+            className={`telemetry-card p-5 sm:p-6 rounded-2xl border bg-[#0b1b14]/85 backdrop-blur-xl flex items-center justify-between text-left group transition-all duration-300 cursor-pointer ${
+              activeTab === 'DOCUMENTS'
+                ? 'border-[#b5f568]/50 shadow-[0_0_24px_rgba(181,245,104,0.18)] ring-1 ring-[#b5f568]/30'
+                : 'border-[#b4ffcd]/15 hover:border-[#b5f568]/40'
+            }`}
+          >
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#9aada2] block">
+                Ingested Documents
+              </span>
+              <span className="text-3xl font-black text-white font-mono mt-1 block group-hover:text-[#b5f568] transition-colors">
+                {documents.length}
+              </span>
+              <span className="text-[11px] text-[#62dd9e] font-mono flex items-center gap-1.5 mt-1">
+                <span>Continuous OCR Pipeline</span>
+                <span className="text-slate-500">&bull;</span>
+                <span className="text-[#b5f568] group-hover:underline">View Registry &darr;</span>
+              </span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-[#121e1a] border border-[#62dd9e]/30 text-[#62dd9e] group-hover:bg-[#b5f568]/15 group-hover:border-[#b5f568]/60 transition-all duration-300 group-hover:scale-105">
+              <Upload className="w-5 h-5 text-[#b5f568]" />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('ACTIVITIES');
+              setTimeout(() => {
+                const elem = document.getElementById('workspace-tabs-content');
+                if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
+            }}
+            className={`telemetry-card p-5 sm:p-6 rounded-2xl border bg-[#0b1b14]/85 backdrop-blur-xl flex items-center justify-between text-left group transition-all duration-300 cursor-pointer ${
+              activeTab === 'ACTIVITIES'
+                ? 'border-[#b5f568]/50 shadow-[0_0_24px_rgba(181,245,104,0.18)] ring-1 ring-[#b5f568]/30'
+                : 'border-[#b4ffcd]/15 hover:border-[#b5f568]/40'
+            }`}
+          >
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#9aada2] block">
+                Verified Activities
+              </span>
+              <span className="text-3xl font-black text-white font-mono mt-1 block group-hover:text-[#b5f568] transition-colors">
+                {activities.length}
+              </span>
+              <span className="text-[11px] text-[#b5f568] font-mono flex items-center gap-1.5 mt-1">
+                <span>Scope 1, 2 & 3 Ledger</span>
+                <span className="text-slate-500">&bull;</span>
+                <span className="text-[#b5f568] group-hover:underline">View Ledger &darr;</span>
+              </span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-[#121e1a] border border-[#b5f568]/30 text-[#b5f568] group-hover:bg-[#b5f568]/15 group-hover:border-[#b5f568]/60 transition-all duration-300 group-hover:scale-105">
+              <Database className="w-5 h-5 text-[#62dd9e]" />
+            </div>
+          </button>
+        </div>
+
+        {/* Stagger 3: Ingestion Zone Toggle */}
+        {(showWorkspaceUpload || documents.length === 0) && (
+          <div className="animate-stagger-3">
             <UploadZone
               onUploadComplete={() => {
                 loadDocuments();
                 loadActivities();
               }}
+              onViewDocuments={() => {
+                setActiveTab('DOCUMENTS');
+                setTimeout(() => {
+                  const elem = document.getElementById('workspace-tabs-content');
+                  if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
+              }}
+              onViewActivities={() => {
+                setActiveTab('ACTIVITIES');
+                setTimeout(() => {
+                  const elem = document.getElementById('workspace-tabs-content');
+                  if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
+              }}
             />
-
-            {/* Ingested Documents Preview */}
-            {documents.length > 0 && (
-              <DocumentList
-                documents={documents}
-                loading={loadingDocs}
-                onSelectDocument={(doc) => setReviewDoc(doc)}
-                onPreviewDocument={handleOpenPreview}
-              />
-            )}
-          </div>
-        ) : (
-          /* Main Workspace for Registered Company */
-          <div className="space-y-6">
-            {/* Enterprise SME Header Bar */}
-            <div className="glass-card p-4 sm:p-5 rounded-2xl flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center space-x-3.5">
-                <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-400">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="font-bold text-white text-base tracking-tight">{company.companyName}</div>
-                  <div className="text-slate-400 flex flex-wrap items-center gap-2 font-mono text-xs mt-0.5">
-                    <span className="text-emerald-300 font-semibold">{company.businessSize} Enterprise</span>
-                    <span>•</span>
-                    <span>{company.industryType}</span>
-                    <span>•</span>
-                    <span className="text-emerald-400">Accounting: ₹ INR</span>
-                    {company.gstin && (
-                      <>
-                        <span>•</span>
-                        <span>GSTIN: {company.gstin}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWorkspaceUpload(!showWorkspaceUpload)}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 transition shadow-sm"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>{showWorkspaceUpload ? 'Hide Ingestion Zone' : 'Upload Documents'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Ingestion Zone Toggle */}
-            {showWorkspaceUpload && (
-              <div className="glass-card p-4 rounded-2xl border border-emerald-500/20">
-                <UploadZone
-                  onUploadComplete={() => {
-                    loadDocuments();
-                    loadActivities();
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Tab: Documents Registry */}
-            {activeTab === 'DOCUMENTS' && (
-              <DocumentList
-                documents={documents}
-                loading={loadingDocs}
-                onSelectDocument={(doc) => setReviewDoc(doc)}
-                onPreviewDocument={handleOpenPreview}
-              />
-            )}
-
-            {/* Tab: Direct Manual Carbon Entry */}
-            {activeTab === 'MANUAL_ENTRY' && (
-              <ManualEntryModal
-                onActivityCreated={() => {
-                  loadActivities();
-                  setActiveTab('ACTIVITIES');
-                }}
-              />
-            )}
-
-            {/* Tab: Verified Activity Records */}
-            {activeTab === 'ACTIVITIES' && (
-              <ActivityRecordsList
-                activities={activities}
-                loading={loadingActivities}
-                onSelectDocumentById={(id) => {
-                  const doc = documents.find((d) => d._id === id);
-                  if (doc) setReviewDoc(doc);
-                }}
-              />
-            )}
           </div>
         )}
+
+        {/* Stagger 4: Active Tab Views */}
+        <div
+          id="workspace-tabs-content"
+          key={activeTab}
+          className="animate-tab-change animate-stagger-3 scroll-mt-24"
+        >
+          {/* Tab: Documents Registry */}
+          {activeTab === 'DOCUMENTS' && (
+            <DocumentList
+              documents={documents}
+              loading={loadingDocs}
+              onSelectDocument={(doc) => setReviewDoc(doc)}
+              onPreviewDocument={handleOpenPreview}
+            />
+          )}
+
+          {/* Tab: Direct Manual Carbon Entry */}
+          {activeTab === 'MANUAL_ENTRY' && (
+            <ManualEntryModal
+              onActivityCreated={() => {
+                loadActivities();
+                setActiveTab('ACTIVITIES');
+              }}
+            />
+          )}
+
+          {/* Tab: Verified Activity Records */}
+          {activeTab === 'ACTIVITIES' && (
+            <ActivityRecordsList
+              activities={activities}
+              loading={loadingActivities}
+              onSelectDocumentById={(id) => {
+                const doc = documents.find((d) => d._id === id);
+                if (doc) setReviewDoc(doc);
+              }}
+            />
+          )}
+        </div>
       </main>
 
       {/* Review & Field Verification Modal */}

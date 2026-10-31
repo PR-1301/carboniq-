@@ -31,14 +31,19 @@ const CompanySchema = new mongoose.Schema(
       required: [true, 'Industry Type is required'],
       enum: [
         'Manufacturing',
+        'Textiles',
         'Textiles & Garments',
+        'Chemicals',
         'Chemicals & Pharmaceuticals',
         'Food Processing & FMCG',
+        'Logistics',
         'Logistics & Supply Chain',
+        'Services',
         'IT & Software Services',
         'Agriculture & Agribusiness',
         'Retail & Wholesale Distribution',
         'Construction & Engineering',
+        'Automotive',
         'Automotive & Ancillary',
         'Metal & Fabrication',
         'Other',
@@ -48,7 +53,7 @@ const CompanySchema = new mongoose.Schema(
     businessSize: {
       type: String,
       required: [true, 'Business Size is required'],
-      enum: ['Small', 'Medium', 'Emerging'],
+      enum: ['Micro', 'Small', 'Medium', 'Emerging', 'Large'],
       default: 'Small',
     },
     gstin: {
@@ -98,4 +103,4 @@ CompanySchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export const Company = mongoose.model('Company', CompanySchema);
+export const Company = mongoose.models.Company || mongoose.model('Company', CompanySchema);

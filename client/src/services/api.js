@@ -27,29 +27,40 @@ function getAuthHeaders(isJson = true) {
   return headers;
 }
 
+async function safeFetchJson(url, options = {}) {
+  try {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: false, error: text || 'Service response could not be parsed' };
+    }
+  } catch (err) {
+    return { success: false, error: 'Connection reset or server restarting: ' + err.message };
+  }
+}
+
 // Health diagnostic check
 export async function checkHealth() {
-  const res = await fetch(`${API_BASE}/health`);
-  return res.json();
+  return safeFetchJson(`${API_BASE}/health`);
 }
 
 // Authentication endpoints
 export async function registerCompany(data) {
-  const res = await fetch(`${API_BASE}/auth/register`, {
+  return safeFetchJson(`${API_BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
 export async function verifyCompanyOtp(data) {
-  const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+  const json = await safeFetchJson(`${API_BASE}/auth/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const json = await res.json();
   if (json.success && json.token) {
     setAuthToken(json.token);
   }
@@ -57,21 +68,19 @@ export async function verifyCompanyOtp(data) {
 }
 
 export async function resendCompanyOtp(data) {
-  const res = await fetch(`${API_BASE}/auth/resend-otp`, {
+  return safeFetchJson(`${API_BASE}/auth/resend-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
 export async function loginCompany(data) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const json = await safeFetchJson(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const json = await res.json();
   if (json.success && json.token) {
     setAuthToken(json.token);
   }
@@ -79,18 +88,16 @@ export async function loginCompany(data) {
 }
 
 export async function getCompanyProfile() {
-  const res = await fetch(`${API_BASE}/auth/me`, {
+  return safeFetchJson(`${API_BASE}/auth/me`, {
     headers: getAuthHeaders(true),
   });
-  return res.json();
 }
 
 export async function completeCompanyOnboarding() {
-  const res = await fetch(`${API_BASE}/auth/complete-onboarding`, {
+  return safeFetchJson(`${API_BASE}/auth/complete-onboarding`, {
     method: 'PATCH',
     headers: getAuthHeaders(true),
   });
-  return res.json();
 }
 
 // Document endpoints
@@ -99,84 +106,75 @@ export async function uploadDocumentFiles(files) {
   for (const file of files) {
     formData.append('files', file);
   }
-  const res = await fetch(`${API_BASE}/documents/upload`, {
+  return safeFetchJson(`${API_BASE}/documents/upload`, {
     method: 'POST',
     headers: getAuthHeaders(false),
     body: formData,
   });
-  return res.json();
 }
 
 export async function uploadZipArchive(file) {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch(`${API_BASE}/documents/upload-zip`, {
+  return safeFetchJson(`${API_BASE}/documents/upload-zip`, {
     method: 'POST',
     headers: getAuthHeaders(false),
     body: formData,
   });
-  return res.json();
 }
 
 export async function fetchDocuments(params = {}) {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE}/documents?${query}`, {
+  return safeFetchJson(`${API_BASE}/documents?${query}`, {
     headers: getAuthHeaders(true),
   });
-  return res.json();
 }
 
 export async function fetchDocumentById(id) {
-  const res = await fetch(`${API_BASE}/documents/${id}`, {
+  return safeFetchJson(`${API_BASE}/documents/${id}`, {
     headers: getAuthHeaders(true),
   });
-  return res.json();
 }
 
 export async function reuploadDocumentFile(id, file) {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch(`${API_BASE}/documents/${id}/reupload`, {
+  return safeFetchJson(`${API_BASE}/documents/${id}/reupload`, {
     method: 'POST',
     headers: getAuthHeaders(false),
     body: formData,
   });
-  return res.json();
 }
 
 export async function reprocessDocumentExtraction(id) {
-  const res = await fetch(`${API_BASE}/documents/${id}/reprocess`, {
+  return safeFetchJson(`${API_BASE}/documents/${id}/reprocess`, {
     method: 'POST',
     headers: getAuthHeaders(true),
   });
-  return res.json();
 }
 
 export async function submitDocumentReview(id, reviewData) {
-  const res = await fetch(`${API_BASE}/documents/${id}/review`, {
+  return safeFetchJson(`${API_BASE}/documents/${id}/review`, {
     method: 'PATCH',
     headers: getAuthHeaders(true),
     body: JSON.stringify(reviewData),
   });
-  return res.json();
 }
 
 // Activity records endpoints
 export async function createManualActivity(activityData) {
-  const res = await fetch(`${API_BASE}/activities`, {
+  return safeFetchJson(`${API_BASE}/activities`, {
     method: 'POST',
     headers: getAuthHeaders(true),
     body: JSON.stringify(activityData),
   });
-  return res.json();
 }
 
 export async function fetchActivities(params = {}) {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE}/activities?${query}`, {
+  return safeFetchJson(`${API_BASE}/activities?${query}`, {
     headers: getAuthHeaders(true),
   });
-  return res.json();
 }
 
 export function getPreviewUrl(id) {
@@ -186,7 +184,6 @@ export function getPreviewUrl(id) {
 
 // Emission factor database endpoints
 export async function fetchEmissionFactors(params = {}) {
-  // Filter out undefined, null, or empty string values from query params
   const cleanParams = {};
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== '' && value !== 'ALL') {
@@ -195,20 +192,17 @@ export async function fetchEmissionFactors(params = {}) {
   }
   const query = new URLSearchParams(cleanParams).toString();
   const url = query ? `${API_BASE}/emission-factors?${query}` : `${API_BASE}/emission-factors`;
-  const res = await fetch(url);
-  return res.json();
+  return safeFetchJson(url);
 }
 
 export async function fetchEmissionFactorSummary() {
-  const res = await fetch(`${API_BASE}/emission-factors/summary`);
-  return res.json();
+  return safeFetchJson(`${API_BASE}/emission-factors/summary`);
 }
 
 export async function calculateDocumentEmissions(payload) {
-  const res = await fetch(`${API_BASE}/documents/calculate-emissions`, {
+  return safeFetchJson(`${API_BASE}/documents/calculate-emissions`, {
     method: 'POST',
     headers: getAuthHeaders(true),
     body: JSON.stringify(payload),
   });
-  return res.json();
 }

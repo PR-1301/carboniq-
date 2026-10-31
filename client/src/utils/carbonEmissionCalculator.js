@@ -323,7 +323,7 @@ export function calculateLocalEmissions({
     isHotspotCandidate,
     isNegativeOffset: false,
     insights: isHotspotCandidate
-      ? '🚨 Significant Scope 3 hotspot candidate (>500 kg CO₂e). Flagged for Layer 3 Primary Supplier LCA Refinement.'
+      ? ' Significant Scope 3 hotspot candidate (>500 kg CO₂e). Flagged for Layer 3 Primary Supplier LCA Refinement.'
       : 'Calculated via EXIOBASE 3.11.2 Leontief multiplier. Physical consumption logs can refine to Layer 1.',
   };
 }
