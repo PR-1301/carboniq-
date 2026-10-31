@@ -8,6 +8,7 @@ import {
   reuploadDocument,
   reprocessDocument,
   reviewDocument,
+  calculateDocumentEmissionsHandler,
 } from '../controllers/documentController.js';
 import { uploadMulti, uploadSingle } from '../middleware/uploadMiddleware.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
@@ -17,6 +18,7 @@ const router = express.Router();
 // All document operations require authenticated Indian SME session
 router.use(authenticateToken);
 
+router.post('/calculate-emissions', calculateDocumentEmissionsHandler);
 router.post('/upload', uploadMulti, uploadDocuments);
 router.post('/upload-zip', uploadSingle, uploadZip);
 router.get('/', getDocuments);

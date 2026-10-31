@@ -8,6 +8,7 @@ import {
 } from './extractionService.js';
 import { compressImageIfExceedsLimit } from './imageCompressionService.js';
 import { performGroqScopeClassification, mapCategoryToScope } from './groqService.js';
+import { calculateCarbonEmissions } from './carbonCalculationService.js';
 
 /**
  * Executes the complete input processing lifecycle on a single document
@@ -176,7 +177,25 @@ export async function processSingleDocument({
   const processingStatus = isFailed ? 'FAILED' : needsReview ? 'NEEDS_REVIEW' : 'COMPLETED';
   const reviewStatus = isFailed ? 'REQUIRED' : needsReview ? 'REQUIRED' : 'PENDING';
 
-  // Step 8: Persist Document Record
+  // Step 8: Calculate Suggested Carbon Emissions (IPCC / CEA Baseline)
+  let suggestedEmissions = null;
+  try {
+    if (classification.carbonRelevance !== 'IRRELEVANT' && extractedFields) {
+      suggestedEmissions = await calculateCarbonEmissions({
+        category: extractedFields.category,
+        scope: docScope,
+        quantity: extractedFields.quantity,
+        unit: extractedFields.unit,
+        categoryData: extractedFields.categoryData,
+        supplierName: extractedFields.supplierName,
+        description: extractedFields.description,
+      });
+    }
+  } catch (calcErr) {
+    console.error('Error calculating suggested emissions during processing:', calcErr);
+  }
+
+  // Step 9: Persist Document Record
   const newDoc = new Document({
     companyId,
     originalFileName,
@@ -198,6 +217,7 @@ export async function processSingleDocument({
     extractionMethod: rawExtraction.method,
     extractedText: rawExtraction.text,
     extractedFields,
+    suggestedEmissions,
     fieldConfidence: validation.fieldConfidence,
     validationErrors: errors,
   });

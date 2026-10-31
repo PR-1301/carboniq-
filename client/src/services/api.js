@@ -203,3 +203,12 @@ export async function fetchEmissionFactorSummary() {
   const res = await fetch(`${API_BASE}/emission-factors/summary`);
   return res.json();
 }
+
+export async function calculateDocumentEmissions(payload) {
+  const res = await fetch(`${API_BASE}/documents/calculate-emissions`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}

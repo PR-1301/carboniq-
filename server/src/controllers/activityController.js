@@ -1,6 +1,7 @@
 import { ActivityRecord } from '../models/ActivityRecord.js';
 import { validateExtractedFields } from '../services/extractionService.js';
 import { mapCategoryToScope } from '../services/groqService.js';
+import { calculateCarbonEmissions } from '../services/carbonCalculationService.js';
 
 /**
  * Creates a manual activity record for authenticated Indian SME
@@ -46,18 +47,35 @@ export async function createActivity(req, res) {
       });
     }
 
+    const assignedScope = req.body.scope || mapCategoryToScope(category);
+    let carbonEmissions = {};
+    try {
+      carbonEmissions = await calculateCarbonEmissions({
+        category,
+        scope: assignedScope,
+        quantity: fieldsToValidate.quantity,
+        unit: fieldsToValidate.unit,
+        categoryData: fieldsToValidate.categoryData,
+        supplierName: fieldsToValidate.supplierName,
+        description,
+      });
+    } catch (calcErr) {
+      console.error('Error calculating emissions for manual activity:', calcErr);
+    }
+
     const activity = new ActivityRecord({
       companyId,
       documentId: documentId || null,
       recordSource: 'MANUAL',
       category,
-      scope: req.body.scope || mapCategoryToScope(category),
+      scope: assignedScope,
       activityDate: fieldsToValidate.activityDate,
       quantity: fieldsToValidate.quantity,
       unit: fieldsToValidate.unit,
       supplierName: fieldsToValidate.supplierName,
       description: description || 'Manually entered SME activity record',
       categoryData: fieldsToValidate.categoryData,
+      carbonEmissions,
       verificationStatus: 'APPROVED',
       notes: notes || '',
     });

@@ -96,6 +96,7 @@ export function ActivityRecordsList({ activities, loading, onSelectDocumentById 
                 <th className="py-3 px-3">Scope</th>
                 <th className="py-3 px-3">Category</th>
                 <th className="py-3 px-3">Quantity</th>
+                <th className="py-3 px-3">Emissions (kg CO₂e)</th>
                 <th className="py-3 px-3">Supplier / Description</th>
                 <th className="py-3 px-3">Source & Traceability</th>
                 <th className="py-3 px-3 text-right">Status</th>
@@ -104,6 +105,9 @@ export function ActivityRecordsList({ activities, loading, onSelectDocumentById 
             <tbody className="divide-y divide-slate-700/50 font-mono">
               {filtered.map((act) => {
                 const dateStr = act.activityDate ? new Date(act.activityDate).toLocaleDateString() : 'N/A';
+                const hasEmissions = act.carbonEmissions && act.carbonEmissions.emissionsKg != null;
+                const isOffset = act.carbonEmissions?.isNegativeOffset;
+
                 return (
                   <tr key={act._id} className="hover:bg-slate-700/30 transition-colors">
                     <td className="py-3 px-3 text-slate-300 font-sans">{dateStr}</td>
@@ -125,6 +129,22 @@ export function ActivityRecordsList({ activities, loading, onSelectDocumentById 
                     <td className="py-3 px-3">
                       <span className="text-emerald-400 font-bold text-sm">{act.quantity}</span>{' '}
                       <span className="text-slate-300">{act.unit}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {hasEmissions ? (
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                            isOffset
+                              ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-600/50'
+                              : 'bg-slate-900 text-teal-300 border border-slate-700'
+                          }`}
+                          title={act.carbonEmissions.calculationFormula || 'Calculated emissions'}
+                        >
+                          {act.carbonEmissions.emissionsKg > 0 ? `+${act.carbonEmissions.emissionsKg}` : act.carbonEmissions.emissionsKg} kg
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 text-xs">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-3 font-sans max-w-xs">
                       <div className="font-medium text-slate-200">{act.supplierName || '—'}</div>

@@ -7,6 +7,7 @@ import { processSingleDocument } from '../services/processingPipeline.js';
 import { extractZipSafely } from '../services/archiveService.js';
 import { validateExtractedFields } from '../services/extractionService.js';
 import { mapCategoryToScope } from '../services/groqService.js';
+import { calculateCarbonEmissions } from '../services/carbonCalculationService.js';
 
 /**
  * Multi-file document upload handler (Scoped to authenticated SME)
@@ -383,6 +384,30 @@ export async function reviewDocument(req, res) {
       });
     }
 
+    const assignedScope =
+      (fields.scope && ['SCOPE_1', 'SCOPE_2', 'SCOPE_3'].includes(fields.scope))
+        ? fields.scope
+        : (doc.scope && doc.scope.startsWith('SCOPE_'))
+          ? doc.scope
+          : mapCategoryToScope(category, doc.documentType);
+
+    // Calculate emissions according to CARBON_EMISSION_CALCULATION_METHODS.md
+    let emissionsReport = null;
+    try {
+      emissionsReport = await calculateCarbonEmissions({
+        category,
+        scope: assignedScope,
+        quantity: fields.quantity,
+        unit: fields.unit,
+        categoryData: fields.categoryData,
+        supplierName: fields.supplierName,
+        description: fields.description,
+      });
+      doc.suggestedEmissions = emissionsReport;
+    } catch (calcErr) {
+      console.error('Error calculating emissions on review approval:', calcErr);
+    }
+
     if (fields.scope && ['SCOPE_1', 'SCOPE_2', 'SCOPE_3'].includes(fields.scope)) {
       doc.scope = fields.scope;
     }
@@ -391,13 +416,6 @@ export async function reviewDocument(req, res) {
     doc.processingStatus = 'COMPLETED';
     doc.validationErrors = [];
     await doc.save();
-
-    const assignedScope =
-      (fields.scope && ['SCOPE_1', 'SCOPE_2', 'SCOPE_3'].includes(fields.scope))
-        ? fields.scope
-        : (doc.scope && doc.scope.startsWith('SCOPE_'))
-          ? doc.scope
-          : mapCategoryToScope(category, doc.documentType);
 
     let activity = await ActivityRecord.findOne({ documentId: doc._id, companyId: req.company._id });
     if (!activity) {
@@ -416,6 +434,7 @@ export async function reviewDocument(req, res) {
           ...fields.categoryData,
           currency: 'INR',
         },
+        carbonEmissions: emissionsReport || {},
         verificationStatus: 'APPROVED',
       });
     } else {
@@ -431,6 +450,9 @@ export async function reviewDocument(req, res) {
         ...fields.categoryData,
         currency: 'INR',
       };
+      if (emissionsReport) {
+        activity.carbonEmissions = emissionsReport;
+      }
       activity.verificationStatus = 'APPROVED';
     }
 
@@ -438,10 +460,32 @@ export async function reviewDocument(req, res) {
 
     res.json({
       success: true,
-      message: 'Document reviewed and approved. Activity record created in INR.',
+      message: 'Document reviewed and approved. Activity record created with calculated emissions.',
       document: doc,
       activityRecord: activity,
+      emissions: emissionsReport,
     });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Live calculation endpoint for document review suggestions
+ */
+export async function calculateDocumentEmissionsHandler(req, res) {
+  try {
+    const { category, scope, quantity, unit, categoryData, supplierName, description } = req.body;
+    const report = await calculateCarbonEmissions({
+      category,
+      scope,
+      quantity,
+      unit,
+      categoryData,
+      supplierName,
+      description,
+    });
+    res.json({ success: true, emissions: report });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

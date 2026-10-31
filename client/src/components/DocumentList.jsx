@@ -198,6 +198,20 @@ export function DocumentList({
                               {doc.extractedFields.supplierName}
                             </span>
                           )}
+                          {doc.suggestedEmissions?.emissionsKg != null && (
+                            <div className="mt-1">
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
+                                  doc.suggestedEmissions.isNegativeOffset
+                                    ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/60'
+                                    : 'bg-slate-900 text-teal-300 border border-slate-700/80'
+                                }`}
+                                title={doc.suggestedEmissions.calculationFormula || 'Suggested emissions'}
+                              >
+                                ≈ {doc.suggestedEmissions.emissionsKg > 0 ? `+${doc.suggestedEmissions.emissionsKg}` : doc.suggestedEmissions.emissionsKg} kg CO₂e
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-amber-400/80 italic">Unextracted / Missing</span>

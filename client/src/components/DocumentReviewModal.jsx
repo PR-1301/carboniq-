@@ -12,9 +12,21 @@ import {
   Calendar,
   Layers,
   Lock,
+  Zap,
+  Flame,
+  Truck,
+  Recycle,
+  Leaf,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Calculator,
+  ShieldCheck,
+  TrendingDown,
 } from 'lucide-react';
 import { getPreviewUrl, submitDocumentReview } from '../services/api.js';
 import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } from './StatusBadge.jsx';
+import { calculateLocalEmissions } from '../utils/carbonEmissionCalculator.js';
 
 export function DocumentReviewModal({
   document,
@@ -89,6 +101,39 @@ export function DocumentReviewModal({
       setErrorMessage(null);
     }
   }, [document]);
+
+  const [suggestedEmissions, setSuggestedEmissions] = useState(null);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+
+  // Dynamically recalculate suggested carbon emissions according to CARBON_EMISSION_CALCULATION_METHODS.md
+  useEffect(() => {
+    const calc = calculateLocalEmissions({
+      category,
+      scope,
+      quantity,
+      unit,
+      fuelType,
+      transportMode,
+      wasteType,
+      disposalMethod,
+      supplierName,
+    });
+    setSuggestedEmissions(calc);
+  }, [category, scope, quantity, unit, fuelType, transportMode, wasteType, disposalMethod, supplierName]);
+
+  const getCategoryIcon = () => {
+    if (category === 'WASTE') {
+      return disposalMethod === 'Recycled' ? (
+        <Recycle className="w-4 h-4 text-emerald-400" />
+      ) : (
+        <Recycle className="w-4 h-4 text-purple-400" />
+      );
+    }
+    if (category === 'FUEL') return <Flame className="w-4 h-4 text-orange-400" />;
+    if (category === 'TRANSPORTATION') return <Truck className="w-4 h-4 text-sky-400" />;
+    if (category === 'ELECTRICITY') return <Zap className="w-4 h-4 text-amber-400" />;
+    return <Calculator className="w-4 h-4 text-emerald-400" />;
+  };
 
   const defaultScopeForCategory = (cat) => {
     switch (cat) {
@@ -563,6 +608,159 @@ export function DocumentReviewModal({
                     rows={12}
                     className="w-full p-3 rounded-lg bg-slate-950 font-mono text-xs text-slate-300 border border-slate-800 focus:outline-none"
                   />
+                </div>
+              )}
+            </div>
+
+            {/* ============================================================== */}
+            {/* SUGGESTED CARBON EMISSIONS PANEL (per CARBON_EMISSION_CALCULATION_METHODS.md) */}
+            {/* ============================================================== */}
+            <div
+              className={`rounded-xl border p-3.5 sm:p-4 shadow-xl transition-all duration-200 relative overflow-hidden ${
+                suggestedEmissions?.isNegativeOffset
+                  ? 'border-emerald-500/60 bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950'
+                  : 'border-slate-700/80 bg-gradient-to-br from-slate-900/95 via-slate-900 to-emerald-950/20'
+              }`}
+            >
+              {/* Decorative background glow */}
+              <div
+                className={`absolute -top-10 -right-10 w-36 h-36 rounded-full blur-3xl pointer-events-none ${
+                  suggestedEmissions?.isNegativeOffset ? 'bg-emerald-500/20' : 'bg-cyan-500/10'
+                }`}
+              />
+
+              {/* Panel Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2.5">
+                <div className="flex items-center space-x-2">
+                  <div
+                    className={`p-1.5 rounded-lg border ${
+                      suggestedEmissions?.isNegativeOffset
+                        ? 'bg-emerald-900/50 border-emerald-500/50 text-emerald-400'
+                        : 'bg-slate-800/80 border-slate-700 text-emerald-400'
+                    }`}
+                  >
+                    {getCategoryIcon()}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white flex items-center space-x-1.5">
+                      <span>Suggested Carbon Emissions</span>
+                      <span className="text-[10px] font-normal text-slate-400">
+                        (from uploaded document)
+                      </span>
+                    </h4>
+                    <p className="text-[10px] text-slate-400">
+                      {suggestedEmissions?.standard || 'GHG Protocol / CEA 2024 Accounting Standard'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  {suggestedEmissions?.isNegativeOffset ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      🌱 Avoided Emissions Offset
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                      {suggestedEmissions?.tier || 'IPCC Tier 1'}
+                    </span>
+                  )}
+                  <ScopeBadge scope={scope} />
+                </div>
+              </div>
+
+              {/* Main Emission Metric */}
+              {suggestedEmissions?.isValid ? (
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                    <div className="flex items-baseline space-x-2">
+                      <span
+                        className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${
+                          suggestedEmissions.isNegativeOffset
+                            ? 'text-emerald-400'
+                            : 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300'
+                        }`}
+                      >
+                        {suggestedEmissions.emissionsKg > 0 ? `+${suggestedEmissions.emissionsKg.toLocaleString()}` : suggestedEmissions.emissionsKg.toLocaleString()}
+                      </span>
+                      <span className="text-xs font-medium text-slate-300">kg CO₂e</span>
+                      <span className="text-xs text-slate-400 font-mono">
+                        ({suggestedEmissions.emissionsTonnes > 0 ? `+${suggestedEmissions.emissionsTonnes}` : suggestedEmissions.emissionsTonnes} tCO₂e)
+                      </span>
+                    </div>
+
+                    {suggestedEmissions.isNegativeOffset ? (
+                      <div className="text-[11px] font-medium text-emerald-300 flex items-center space-x-1">
+                        <TrendingDown className="w-3.5 h-3.5" />
+                        <span>Net footprint reduction / carbon credit</span>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-400">
+                        Factor: <span className="text-slate-200 font-mono">{suggestedEmissions.factorUsed} {suggestedEmissions.factorUnit}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Formula Pill */}
+                  <div className="px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-300 flex items-center justify-between gap-2 overflow-x-auto">
+                    <div className="flex items-center space-x-1.5">
+                      <Calculator className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-slate-400">Formula:</span>
+                      <span className="text-emerald-300">{suggestedEmissions.formula}</span>
+                    </div>
+                  </div>
+
+                  {/* Sustainability Insight / Tip */}
+                  {suggestedEmissions.insights && (
+                    <div className="flex items-start space-x-2 text-[11px] text-emerald-300/90 bg-emerald-950/20 border border-emerald-800/30 px-2.5 py-1.5 rounded-lg">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="leading-snug">{suggestedEmissions.insights}</span>
+                    </div>
+                  )}
+
+                  {/* Expandable Methodology Drawer */}
+                  <div className="pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsExpanded(!detailsExpanded)}
+                      className="text-[10px] font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1 transition"
+                    >
+                      <span>Methodology & Factor Provenance (CARBON_EMISSION_CALCULATION_METHODS.md)</span>
+                      {detailsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+
+                    {detailsExpanded && (
+                      <div className="mt-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                        <div>
+                          <span className="text-slate-500 block">Authoritative Source:</span>
+                          <span className="text-slate-300 font-medium">{suggestedEmissions.sourceName}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block">Accounting Tier:</span>
+                          <span className="text-slate-300 font-medium">{suggestedEmissions.tier}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block">Applicable Standard:</span>
+                          <span className="text-slate-300 font-medium">{suggestedEmissions.standard}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block">Database Storage:</span>
+                          <span className="text-emerald-400 font-medium flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                            <span>Saved to MongoDB upon approval</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-3 text-xs text-slate-400 py-1">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0" />
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Enter activity quantity (e.g.{' '}
+                    <strong className="text-slate-300">518 kWh</strong> for electricity,{' '}
+                    <strong className="text-slate-300">100 Liters</strong> for fuel) to view real-time suggested carbon emissions according to CARBON_EMISSION_CALCULATION_METHODS.md.
+                  </p>
                 </div>
               )}
             </div>
