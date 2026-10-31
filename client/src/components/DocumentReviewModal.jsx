@@ -34,6 +34,26 @@ import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } 
 import { calculateLocalEmissions } from '../utils/carbonEmissionCalculator.js';
 import { ReductionPlanner } from './ReductionPlanner.jsx';
 
+function defaultScopeForCategory(cat) {
+  switch (cat) {
+    case 'ELECTRICITY': return 'SCOPE_2';
+    case 'FUEL': return 'SCOPE_1';
+    case 'TRANSPORTATION': return 'SCOPE_3';
+    case 'WASTE': return 'SCOPE_3';
+    default: return 'SCOPE_3';
+  }
+}
+
+function defaultUnitForCategory(cat) {
+  switch (cat) {
+    case 'ELECTRICITY': return 'kWh';
+    case 'FUEL': return 'Liters';
+    case 'TRANSPORTATION': return 'km';
+    case 'WASTE': return 'kg';
+    default: return 'units';
+  }
+}
+
 export function DocumentReviewModal({
   document,
   isOpen,
@@ -70,7 +90,7 @@ export function DocumentReviewModal({
   const [wasteType, setWasteType] = useState('');
   const [disposalMethod, setDisposalMethod] = useState('');
 
-  const isMultiScope = document.scope === 'MULTI_SCOPE' || (document.lineItems && document.lineItems.length > 0);
+  const isMultiScope = Boolean(document?.scope === 'MULTI_SCOPE' || (document?.lineItems && document.lineItems.length > 0));
   const [lineItems, setLineItems] = useState([]);
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [ledgerScopeFilter, setLedgerScopeFilter] = useState('');
@@ -261,26 +281,6 @@ export function DocumentReviewModal({
     if (category === 'TRANSPORTATION') return <Truck className="w-4 h-4 text-sky-400" />;
     if (category === 'ELECTRICITY') return <Zap className="w-4 h-4 text-[#b5f568]" />;
     return <Calculator className="w-4 h-4 text-[#62dd9e]" />;
-  };
-
-  const defaultScopeForCategory = (cat) => {
-    switch (cat) {
-      case 'ELECTRICITY': return 'SCOPE_2';
-      case 'FUEL': return 'SCOPE_1';
-      case 'TRANSPORTATION': return 'SCOPE_3';
-      case 'WASTE': return 'SCOPE_3';
-      default: return 'SCOPE_3';
-    }
-  };
-
-  const defaultUnitForCategory = (cat) => {
-    switch (cat) {
-      case 'ELECTRICITY': return 'kWh';
-      case 'FUEL': return 'Liters';
-      case 'TRANSPORTATION': return 'km';
-      case 'WASTE': return 'kg';
-      default: return 'units';
-    }
   };
 
   const handleCategoryChange = (newCat) => {

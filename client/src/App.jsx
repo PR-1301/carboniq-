@@ -1093,22 +1093,24 @@ export function App() {
 
       {/* Review & Field Verification Modal */}
       <ErrorBoundary onReset={() => setReviewDoc(null)}>
-        <DocumentReviewModal
-        document={reviewDoc}
-        isOpen={Boolean(reviewDoc)}
-        onClose={() => setReviewDoc(null)}
-        onSaved={() => {
-          loadDocuments();
-          loadActivities();
-        }}
-        onTriggerReupload={(doc) => {
-          setReviewDoc(null);
-          setReuploadDoc(doc);
-        }}
-        onTriggerReprocess={(doc) => {
-          handleReprocess(doc);
-        }}
-      />
+        {reviewDoc && (
+          <DocumentReviewModal
+            document={reviewDoc}
+            isOpen={Boolean(reviewDoc)}
+            onClose={() => setReviewDoc(null)}
+            onSaved={() => {
+              loadDocuments();
+              loadActivities();
+            }}
+            onTriggerReupload={(doc) => {
+              setReviewDoc(null);
+              setReuploadDoc(doc);
+            }}
+            onTriggerReprocess={(doc) => {
+              handleReprocess(doc);
+            }}
+          />
+        )}
       </ErrorBoundary>
 
       {/* Re-upload Modal for ambiguous / low-confidence documents */}
