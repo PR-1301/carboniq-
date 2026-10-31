@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Database,
-  CheckCircle2,
-  AlertCircle,
   FileText,
   PlusCircle,
   Layers,
   LogOut,
-  Building,
-  Upload,
+  Building2,
   Sparkles,
+  ArrowRight,
+  Menu,
+  X,
+  Gauge,
+  Sliders,
+  Compass,
 } from 'lucide-react';
 
 export function Navbar({
@@ -19,136 +22,319 @@ export function Navbar({
   company,
   onLogout,
   onOpenUpload,
-  currentRoute = 'MAIN',
+  currentRoute = 'LANDING',
   onNavigate,
+  onOpenAuth,
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isDbConnected = healthInfo?.databaseConnected;
-  const isOcrConfigured = healthInfo?.ocrSpaceConfigured;
+
+  const scrollToAnchor = (id) => {
+    setMobileMenuOpen(false);
+    if (currentRoute !== 'LANDING' && onNavigate) {
+      onNavigate(company ? 'WORKSPACE' : 'LANDING', '/');
+      setTimeout(() => {
+        const elem = document.getElementById(id);
+        if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      const elem = document.getElementById(id);
+      if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <header className="border-b border-[#b4ffcd]/12 bg-[#06110d]/85 backdrop-blur-2xl sticky top-0 z-50 font-sans selection:bg-[#b5f568] selection:text-[#102000]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand & SME Title */}
-          <div className="flex items-center space-x-3">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-black text-xl">
-              C
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-lg text-white tracking-tight">CarbonIQ</span>
-                <span className="text-xs bg-slate-800 text-emerald-400 px-2 py-0.5 rounded border border-slate-700 font-mono">
-                  India SME (₹)
-                </span>
-              </div>
-              {company ? (
-                <div className="flex items-center space-x-1.5 text-xs text-slate-300">
-                  <span className="font-medium text-emerald-300 truncate max-w-[180px] sm:max-w-xs">
-                    {company.companyName}
+        <div className="flex items-center justify-between h-20">
+          {/* Brand Identity */}
+          <div className="flex items-center space-x-6">
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate(company ? 'WORKSPACE' : 'LANDING', '/')}
+              className="flex items-center space-x-3 text-left group"
+            >
+              <img
+                src="/drkthm-logo.png"
+                alt="CarbonIQ"
+                className="h-9 sm:h-10 w-auto max-w-[170px] sm:max-w-[210px] object-contain transition-all duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(98,221,158,0.2)]"
+              />
+              <div>
+                <div className="hidden sm:flex items-center space-x-2">
+                  <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-[#121e1a] border border-[#62dd9e]/30 text-[#62dd9e] font-mono">
+                    Telemetry
                   </span>
-                  {company.gstin && (
-                    <span className="hidden sm:inline-block px-1.5 py-0.2 bg-slate-800 border border-slate-700 text-[10px] text-slate-400 font-mono rounded">
-                      GSTIN: {company.gstin}
-                    </span>
-                  )}
-                  <span className="text-slate-500">•</span>
-                  <span className="text-[11px] text-slate-400">{company.industryType}</span>
                 </div>
-              ) : (
-                <p className="text-xs text-slate-400">Indian SME Carbon Footprint Portal</p>
-              )}
-            </div>
+                {company && (
+                  <div className="flex items-center space-x-1.5 text-xs text-slate-400 mt-0.5">
+                    <span className="font-medium text-[#62dd9e] truncate max-w-[160px] sm:max-w-xs">
+                      {company.companyName}
+                    </span>
+                    {company.gstin && (
+                      <span className="hidden sm:inline-block px-1.5 py-0.5 bg-[#0b1b14] border border-[#b4ffcd]/10 text-[10px] text-slate-400 font-mono rounded">
+                        GSTIN: {company.gstin}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </button>
+
+            {/* Public Anchor Links (when on landing page) */}
+            {currentRoute === 'LANDING' && (
+              <nav className="hidden lg:flex items-center space-x-1 pl-4 border-l border-[#b4ffcd]/10">
+                <button
+                  type="button"
+                  onClick={() => scrollToAnchor('product-dashboard')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.04] transition"
+                >
+                  Platform
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToAnchor('how-it-works')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.04] transition"
+                >
+                  How It Works
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToAnchor('interactive-simulator')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.04] transition"
+                >
+                  Simulator
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToAnchor('scope-mechanics')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.04] transition"
+                >
+                  Scope Mechanics
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToAnchor('capabilities')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.04] transition"
+                >
+                  Capabilities
+                </button>
+              </nav>
+            )}
+
+            {/* Authenticated Workspace Navigation Tabs */}
+            {company && currentRoute === 'WORKSPACE' && (
+              <nav className="hidden md:flex space-x-1.5 pl-4 border-l border-[#b4ffcd]/10">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('DOCUMENTS')}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'DOCUMENTS'
+                      ? 'bg-[#121e1a] text-[#62dd9e] border border-[#62dd9e]/40 shadow-sm'
+                      : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Documents</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('ACTIVITIES')}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'ACTIVITIES'
+                      ? 'bg-[#121e1a] text-[#62dd9e] border border-[#62dd9e]/40 shadow-sm'
+                      : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Verified Activities</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('MANUAL_ENTRY')}
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'MANUAL_ENTRY'
+                      ? 'bg-[#121e1a] text-[#62dd9e] border border-[#62dd9e]/40 shadow-sm'
+                      : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
+                  }`}
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Manual Entry</span>
+                </button>
+              </nav>
+            )}
           </div>
 
-          {/* Navigation Tabs (Only when authenticated) */}
-          {company && (
-            <nav className="hidden md:flex space-x-1 sm:space-x-2">
-              <button
-                onClick={() => setActiveTab('DOCUMENTS')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'DOCUMENTS'
-                    ? 'bg-slate-800 text-emerald-400 border border-slate-700'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Documents</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('MANUAL_ENTRY')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'MANUAL_ENTRY'
-                    ? 'bg-slate-800 text-emerald-400 border border-slate-700'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Manual Entry (₹)</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('ACTIVITIES')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'ACTIVITIES'
-                    ? 'bg-slate-800 text-emerald-400 border border-slate-700'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-                <span>Verified Activities</span>
-              </button>
-            </nav>
-          )}
-
-          {/* Right Action: Status & Logout */}
+          {/* Right Action Cluster */}
           <div className="flex items-center space-x-3 text-xs">
+            {/* Database indicator */}
             <div
-              className={`hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full border ${
+              className={`hidden xl:flex items-center space-x-1.5 px-3 py-1 rounded-full border text-[11px] font-mono ${
                 isDbConnected
-                  ? 'bg-emerald-950/40 border-emerald-700/50 text-emerald-300'
-                  : 'bg-red-950/40 border-red-700/50 text-red-300'
+                  ? 'bg-[#0b1b14] border-[#62dd9e]/30 text-[#62dd9e]'
+                  : 'bg-red-950/40 border-red-700/40 text-red-300'
               }`}
             >
-              <Database className="w-3.5 h-3.5" />
-              <span>MongoDB: {isDbConnected ? 'Connected' : 'Offline'}</span>
+              <Database className="w-3 h-3" />
+              <span>DB: {isDbConnected ? 'Active' : 'Offline'}</span>
             </div>
 
+            {/* Emission Factors Navigator */}
             {onNavigate && (
               <button
                 type="button"
                 onClick={() =>
                   currentRoute === 'EMISSION_FACTORS'
-                    ? onNavigate('MAIN', '/')
+                    ? onNavigate(company ? 'WORKSPACE' : 'LANDING', '/')
                     : onNavigate('EMISSION_FACTORS', '/emission-factor-dataset')
                 }
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition border ${
                   currentRoute === 'EMISSION_FACTORS'
-                    ? 'bg-emerald-950 border-emerald-500 text-emerald-300 shadow-sm'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    ? 'bg-[#121e1a] border-[#62dd9e] text-[#62dd9e] shadow-[0_0_12px_rgba(98,221,158,0.2)]'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-[#b4ffcd]/12'
                 }`}
                 title="View Verified Emission Factors Dataset"
               >
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{currentRoute === 'EMISSION_FACTORS' ? 'Back to App' : 'Emission Factors'}</span>
+                <Sparkles className="w-3.5 h-3.5 text-[#62dd9e]" />
+                <span>
+                  {currentRoute === 'EMISSION_FACTORS'
+                    ? company
+                      ? 'Back to Workspace'
+                      : 'Home'
+                    : 'Factor Directory'}
+                </span>
               </button>
             )}
 
-            {company ? (
+            {/* Public Auth Buttons (when logged out) */}
+            {!company && onOpenAuth && (
               <div className="flex items-center space-x-2">
                 <button
+                  type="button"
+                  onClick={() => onOpenAuth('LOGIN')}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.08] active:scale-95 transition-all duration-200 border border-transparent hover:border-white/[0.1]"
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('REGISTER')}
+                  className="group flex items-center space-x-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-gradient-to-r from-[#b5f568] to-[#9ad84f] text-[#102000] shadow-[0_0_20px_rgba(181,245,104,0.35)] hover:shadow-[0_0_28px_rgba(181,245,104,0.55)] hover:scale-[1.03] active:scale-[0.96] transition-all duration-200 cursor-pointer"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            )}
+
+            {/* Authenticated Workspace Switcher & Logout */}
+            {company && (
+              <div className="flex items-center space-x-2">
+                {currentRoute !== 'WORKSPACE' && onNavigate && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('WORKSPACE', '/')}
+                    className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#b5f568] hover:bg-[#9ad84f] text-[#102000] transition shadow-sm font-semibold"
+                  >
+                    <Building2 className="w-3.5 h-3.5" />
+                    <span>Workspace</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
                   onClick={onLogout}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-rose-400 border border-slate-700 transition"
-                  title="Logout Company"
+                  className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-white/[0.08] hover:border-rose-800/50 transition"
+                  title="Logout Session"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Logout</span>
                 </button>
               </div>
-            ) : null}
+            )}
+
+            {/* Mobile Hamburger Menu Toggle */}
+            {currentRoute === 'LANDING' && (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] transition"
+                aria-label="Toggle navigation menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && currentRoute === 'LANDING' && (
+        <div className="lg:hidden border-t border-[#b4ffcd]/10 bg-[#06110d]/95 backdrop-blur-2xl px-4 py-4 space-y-2">
+          <button
+            type="button"
+            onClick={() => scrollToAnchor('product-dashboard')}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+          >
+            Platform Console
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToAnchor('how-it-works')}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+          >
+            How It Works
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToAnchor('interactive-simulator')}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+          >
+            Interactive Simulator
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToAnchor('scope-mechanics')}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+          >
+            Scope Mechanics
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToAnchor('capabilities')}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/[0.06]"
+          >
+            Capabilities
+          </button>
+          {!company && onOpenAuth && (
+            <div className="pt-3 border-t border-[#b4ffcd]/10 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAuth('LOGIN');
+                }}
+                className="w-full py-2.5 rounded-xl text-center text-xs font-semibold text-white bg-white/[0.06]"
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAuth('REGISTER');
+                }}
+                className="w-full py-2.5 rounded-xl text-center text-xs font-semibold bg-[#b5f568] text-[#102000]"
+              >
+                Get Started
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }
+
+export default Navbar;

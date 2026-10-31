@@ -217,7 +217,7 @@ export function EmissionFactorDataset({ onBackToWorkspace }) {
     if (code === 'IN') {
       return (
         <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-950/70 border border-emerald-600/60 text-emerald-300 font-mono">
-          <span>🇮🇳</span>
+          <span>IN</span>
           <span>India</span>
         </span>
       );
@@ -225,7 +225,7 @@ export function EmissionFactorDataset({ onBackToWorkspace }) {
     if (code === 'GB') {
       return (
         <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-950/70 border border-indigo-600/60 text-indigo-300 font-mono">
-          <span>🇬🇧</span>
+          <span>GB</span>
           <span>UK</span>
         </span>
       );
@@ -233,14 +233,14 @@ export function EmissionFactorDataset({ onBackToWorkspace }) {
     if (code === 'US') {
       return (
         <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-950/70 border border-blue-600/60 text-blue-300 font-mono">
-          <span>🇺🇸</span>
+          <span>US</span>
           <span>USA</span>
         </span>
       );
     }
     return (
       <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 font-mono">
-        <span>🌐</span>
+        <Globe className="w-3 h-3 text-slate-400" />
         <span>{code}</span>
       </span>
     );
@@ -462,7 +462,7 @@ export function EmissionFactorDataset({ onBackToWorkspace }) {
                 <option value="ALL">All Countries</option>
                 {summary?.countries?.map((c) => (
                   <option key={c} value={c}>
-                    {c === 'IN' ? '🇮🇳 India (IN)' : c === 'GB' ? '🇬🇧 United Kingdom (GB)' : c === 'US' ? '🇺🇸 United States (US)' : c}
+                    {c === 'IN' ? 'India (IN)' : c === 'GB' ? 'United Kingdom (GB)' : c === 'US' ? 'United States (US)' : c}
                   </option>
                 ))}
               </select>
@@ -551,13 +551,13 @@ export function EmissionFactorDataset({ onBackToWorkspace }) {
       {loading ? (
         <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
           <RefreshCw className="w-8 h-8 animate-spin text-emerald-400" />
-          <span className="text-sm font-medium">Querying MongoDB emission factor collection...</span>
+          <span className="text-sm font-medium">Loading statutory emission factors database...</span>
         </div>
       ) : error ? (
         <div className="p-6 rounded-2xl bg-red-950/50 border border-red-700/60 text-red-200 text-center space-y-2">
           <div className="font-semibold">{error}</div>
           <p className="text-xs text-red-300">
-            Ensure local MongoDB is running on <code className="font-mono">mongodb://127.0.0.1:27017/carboniq</code>.
+            Please verify connection to the carbon accounting repository.
           </p>
           <button
             type="button"

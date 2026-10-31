@@ -264,7 +264,7 @@ export function DocumentReviewModal({
                 <button
                   onClick={() => onTriggerReprocess(document)}
                   className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
-                  title="Data not discovered. Re-run Groq extraction."
+                  title="Data not discovered. Re-run automated extraction."
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Re-extract</span>
@@ -657,7 +657,7 @@ export function DocumentReviewModal({
                 <div className="flex items-center space-x-1.5">
                   {suggestedEmissions?.isNegativeOffset ? (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      🌱 Avoided Emissions Offset
+                      Avoided Emissions Offset
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">

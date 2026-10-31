@@ -43,7 +43,7 @@ export function DocumentList({
         <div>
           <h2 className="text-lg font-semibold text-white">Ingested Documents</h2>
           <p className="text-xs text-slate-400">
-            Total {documents.length} document(s) in local MongoDB database
+            Total {documents.length} document(s) in corporate inventory
           </p>
         </div>
 
