@@ -8,6 +8,8 @@ import { extractZipSafely } from '../services/archiveService.js';
 import { validateExtractedFields } from '../services/extractionService.js';
 import { mapCategoryToScope } from '../services/groqService.js';
 import { calculateCarbonEmissions } from '../services/carbonCalculationService.js';
+import { generateSingleDocumentPDF } from '../services/statutoryExportService.js';
+
 
 /**
  * Multi-file document upload handler (Scoped to authenticated SME)
@@ -490,3 +492,48 @@ export async function calculateDocumentEmissionsHandler(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
+/**
+ * Generates and downloads individual document carbon verification certificate (PDF)
+ */
+export async function exportDocumentReportPDF(req, res) {
+  try {
+    const doc = await Document.findOne({ _id: req.params.id, companyId: req.company._id });
+    if (!doc) {
+      return res.status(404).json({ success: false, error: 'Document not found or unauthorized.' });
+    }
+
+    // Ensure emissions are calculated
+    if (!doc.suggestedEmissions?.emissionsKg && doc.extractedFields?.quantity) {
+      try {
+        const emissions = await calculateCarbonEmissions({
+          category: doc.extractedFields.category || doc.documentType,
+          scope: doc.scope,
+          quantity: doc.extractedFields.quantity,
+          unit: doc.extractedFields.unit,
+          categoryData: doc.extractedFields.categoryData,
+          supplierName: doc.extractedFields.supplierName,
+          description: doc.extractedFields.description,
+        });
+        doc.suggestedEmissions = emissions;
+        await doc.save();
+      } catch (err) {
+        console.error('Error calculating emissions for single document report:', err);
+      }
+    }
+
+    const safeName = (doc.originalFileName || 'document').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `${safeName}_Carbon_Certificate.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    generateSingleDocumentPDF(doc, req.company, res);
+  } catch (error) {
+    console.error('Error in exportDocumentReportPDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+}
+

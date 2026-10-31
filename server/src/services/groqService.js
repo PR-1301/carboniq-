@@ -39,7 +39,7 @@ export async function performGroqVisionExtraction(filePath, originalFileName, mi
     return {
       success: false,
       text: '',
-      error: 'GROQ_API_KEY is not configured in server/.env. Please configure your Groq API key.',
+      error: 'Vision AI API key is not configured in server/.env.',
       scope: 'UNKNOWN',
       confidence: 0,
     };
@@ -113,29 +113,32 @@ Return ONLY the JSON object. Do not enclose in markdown code fences.`;
 
     const content = response.data?.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('Groq returned an empty response.');
+      throw new Error('Vision AI returned an empty response.');
     }
 
     const parsed = JSON.parse(content);
+
+    const rawReason = parsed.classificationReason || 'Analyzed via Multimodal Vision AI.';
+    const sanitizedReason = rawReason.replace(/groq(\s+vision)?/gi, 'Multimodal AI');
 
     return {
       success: true,
       text: parsed.extractedText || '',
       carbonRelevance: parsed.carbonRelevance || 'UNCERTAIN',
       documentType: parsed.documentType || 'UNKNOWN',
-      classificationReason: parsed.classificationReason || 'Analyzed via Groq Vision.',
+      classificationReason: sanitizedReason,
       scope: parsed.scope || mapCategoryToScope(parsed.extractedFields?.category, parsed.documentType),
       extractedFields: parsed.extractedFields || {},
       confidence: parsed.confidence || 0.85,
       error: null,
     };
   } catch (error) {
-    console.error('Groq Vision extraction error:', error.response?.data || error.message);
+    console.error('Vision AI extraction error:', error.response?.data || error.message);
     const msg = error.response?.data?.error?.message || error.message;
     return {
       success: false,
       text: '',
-      error: `Groq Vision API: ${msg}`,
+      error: `Vision AI Processing: ${msg}`.replace(/groq(\s+vision)?/gi, 'Vision AI'),
       scope: 'UNKNOWN',
       confidence: 0,
     };
@@ -149,12 +152,12 @@ export async function performGroqScopeClassification(text, originalFileName, pre
   const apiKey = process.env.GROQ_API_KEY;
   const model = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
 
-  // Fallback if GROQ_API_KEY is not configured
+  // Fallback if API key is not configured
   if (!apiKey || apiKey.trim() === '') {
     const fallbackScope = mapCategoryToScope(candidateFields?.category, preliminaryDocType);
     return {
       scope: fallbackScope,
-      reason: `Assigned ${fallbackScope} based on category ${candidateFields?.category || preliminaryDocType} (Groq API key not set).`,
+      reason: `Assigned ${fallbackScope} based on category ${candidateFields?.category || preliminaryDocType}.`,
     };
   }
 

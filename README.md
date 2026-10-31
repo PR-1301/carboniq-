@@ -6,7 +6,7 @@ CarbonIQ is an automated, AI-driven corporate carbon accounting platform tailore
 
 ## 🌟 Key Capabilities
 
-* **Automated Document Intelligence:** Ingests PDFs, scanned receipts, utility bills, and Excel logs via Groq Vision / LLMs (`llama-3.2-11b-vision-preview`) and regex heuristics to extract billing dates, consumption quantities, units, and vendor information.
+* **Automated Document Intelligence:** Ingests PDFs, scanned receipts, utility bills, and Excel logs via Multimodal Vision AI / LLMs and regex heuristics to extract billing dates, consumption quantities, units, and vendor information.
 * **Intelligent GHG Scope Classification:** Categorizes transactions into **Scope 1** (Direct Combustion & Company Transport), **Scope 2** (Grid Electricity), and **Scope 3** (Waste, Freight, and Purchased Goods).
 * **Authoritative Physical Factor Catalogue (Layer 1):** Pre-seeded with 149 authoritative Indian factors from the Central Electricity Authority (CEA Baseline Database 2024: $0.82\text{ kg CO}_2/\text{kWh}$), Bureau of Energy Efficiency (BEE), MoEFCC, and IPCC.
 * **Spend-Based Leontief EEIO Engine (Layer 2):** Integrates **EXIOBASE 3.11.2 (2024 pxp)** covering 200 Indian economic sectors to calculate Scope 3 supplier emissions when physical consumption logs are missing.
@@ -63,7 +63,7 @@ yarn install
 
 # Ensure environment variables are configured (.env)
 # MONGO_URI=mongodb://127.0.0.1:27017/carboniq
-# GROQ_API_KEY=your_groq_api_key
+# AI_VISION_API_KEY=your_api_key
 
 # Seed physical emission factors (149 authoritative benchmarks)
 node scripts/seedEmissionFactors.js

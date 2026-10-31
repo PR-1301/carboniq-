@@ -32,7 +32,7 @@ async function runTestSuite() {
     recordTest(
       'Test 1: Local MongoDB Connection & System Health',
       health.databaseConnected === true,
-      `Database state: ${health.database}, Groq Model: ${health.groqModel}`
+      `Database state: ${health.database}, AI Model: ${health.aiModel || 'active'}`
     );
   } catch (err) {
     recordTest('Test 1: Local MongoDB Connection & System Health', false, err.message);
