@@ -3,12 +3,12 @@ import { X, Upload, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
 import { reuploadDocumentFile } from '../services/api.js';
 
 export function ReuploadModal({ document, isOpen, onClose, onReuploaded }) {
-  if (!isOpen || !document) return null;
-
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+
+  if (!isOpen || !document) return null;
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {

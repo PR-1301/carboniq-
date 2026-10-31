@@ -3,7 +3,7 @@ import React from 'react';
 export function ProcessingStatusBadge({ status }) {
   const configs = {
     UPLOADED: { bg: 'bg-[#0f1f2e] text-[#38bdf8] border-[#38bdf8]/40', label: 'Uploaded' },
-    HASH_CHECK: { bg: 'bg-[#0e272b] text-[#2dd4bf] border-[#2dd4bf]/40', label: 'SHA-256 Check' },
+    HASH_CHECK: { bg: 'bg-[#0e272b] text-[#2dd4bf] border-[#2dd4bf]/40', label: 'Integrity Check' },
     CLASSIFYING: { bg: 'bg-[#181a38] text-[#818cf8] border-[#818cf8]/40', label: 'Classifying' },
     EXTRACTING: { bg: 'bg-[#1e1536] text-[#c084fc] border-[#c084fc]/40', label: 'Extracting' },
     NEEDS_REVIEW: { bg: 'bg-[#291e0a] text-[#facc15] border-[#facc15]/40', label: 'Needs Review' },

@@ -37,13 +37,11 @@ export function DocumentReviewModal({
   onTriggerReupload,
   onTriggerReprocess,
 }) {
-  if (!isOpen || !document) return null;
-
-  const isPermanentlyReviewed = document.reviewStatus === 'APPROVED' || document.reviewStatus === 'REJECTED';
+  const isPermanentlyReviewed = document ? (document.reviewStatus === 'APPROVED' || document.reviewStatus === 'REJECTED') : false;
 
   // The document data is unclear / not discoverable if:
   const isDataUnclearOrUndiscoverable =
-    !isPermanentlyReviewed && (
+    Boolean(document) && !isPermanentlyReviewed && (
       document.processingStatus === 'NEEDS_REVIEW' ||
       document.processingStatus === 'FAILED' ||
       document.reviewStatus === 'REQUIRED' ||
@@ -239,6 +237,8 @@ export function DocumentReviewModal({
       setSaving(false);
     }
   };
+
+  if (!isOpen || !document) return null;
 
   const previewUrl = getPreviewUrl(document._id);
   const isImage = document.mimeType?.startsWith('image/');

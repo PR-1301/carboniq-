@@ -525,18 +525,18 @@ input[type=range]::-webkit-slider-thumb:active {
 
 @keyframes donut-spin-in {
   0% {
-    transform: rotate(-180deg) scale(0.85);
+    transform: scale(0.92);
     opacity: 0;
   }
   100% {
-    transform: rotate(-90deg) scale(1);
+    transform: scale(1);
     opacity: 1;
   }
 }
 
 .animate-donut-enter {
-  transform-origin: 80px 80px;
-  animation: donut-spin-in 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center;
+  animation: donut-spin-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes kpi-card-shimmer {

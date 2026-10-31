@@ -22,12 +22,6 @@ export function StatutoryComplianceModal({ isOpen, onClose, company }) {
   const [summaryData, setSummaryData] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadSummary();
-    }
-  }, [isOpen]);
-
   const loadSummary = async () => {
     setLoading(true);
     setError(null);
@@ -44,6 +38,12 @@ export function StatutoryComplianceModal({ isOpen, onClose, company }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSummary();
+    }
+  }, [isOpen]);
 
   const handleDownload = async (endpoint, fallbackFilename, formatId) => {
     setDownloadingFormat(formatId);

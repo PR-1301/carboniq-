@@ -431,7 +431,7 @@ export function UploadZone({ onUploadComplete, onViewDocuments, onViewActivities
               <span className="px-2.5 py-1 rounded-full bg-[#121e1a] border border-white/[0.08]">Max 25MB / file</span>
               <span className="px-2.5 py-1 rounded-full bg-[#121e1a] border border-white/[0.08]">Max 100MB / ZIP</span>
               <span className="px-2.5 py-1 rounded-full bg-[#121e1a] border border-[#62dd9e]/30 text-[#62dd9e]">
-                SHA-256 Deduplication
+                Duplicate Verification
               </span>
             </div>
           </div>
@@ -451,7 +451,7 @@ export function UploadZone({ onUploadComplete, onViewDocuments, onViewActivities
                 {/* Vertical Scanning Laser Beam */}
                 <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#b5f568] to-transparent shadow-[0_0_12px_#b5f568] animate-scanner-beam pointer-events-none" />
 
-                {/* Phase 1: Cryptographic Deduplication */}
+                {/* Phase 1: Duplicate Verification & Document Ingestion */}
                 {pipelinePhase === 1 && (
                   <ShieldCheck className="w-8 h-8 text-[#b5f568] animate-icon-morph" />
                 )}
@@ -480,7 +480,7 @@ export function UploadZone({ onUploadComplete, onViewDocuments, onViewActivities
                   Phase {pipelinePhase} / 3
                 </span>
                 <span className="text-white font-semibold">
-                  {pipelinePhase === 1 && 'Cryptographic Ingestion & Deduplication'}
+                  {pipelinePhase === 1 && 'Document Ingestion & Integrity Verification'}
                   {pipelinePhase === 2 && 'Autonomous Document Parsing & Field Extraction'}
                   {pipelinePhase === 3 && 'Carbon-Aware Statutory Factor Alignment'}
                   {pipelinePhase === 4 && 'Ledger Verification & Final Synthesis'}
@@ -488,9 +488,9 @@ export function UploadZone({ onUploadComplete, onViewDocuments, onViewActivities
               </div>
               <p className="text-xs text-[#9aada2] max-w-md mx-auto leading-relaxed">
                 {pipelinePhase === 1 &&
-                  'Computing SHA-256 signatures to eliminate redundant entries and secure sovereign ledger integrity...'}
+                  'Validating document integrity and checking against existing records to eliminate duplicate entries...'}
                 {pipelinePhase === 2 &&
-                  'Autonomous OCR pipeline identifying billing periods, consumption units, and operational activity markers...'}
+                  'Autonomous ingestion engine identifying billing periods, consumption units, and activity markers...'}
                 {pipelinePhase === 3 &&
                   'Calibrating statutory CEA v20.0 national grid baselines & MoEFCC verified emissions coefficients...'}
                 {pipelinePhase === 4 &&
@@ -523,7 +523,7 @@ export function UploadZone({ onUploadComplete, onViewDocuments, onViewActivities
               >
                 <div className="font-semibold flex items-center justify-center gap-1">
                   {pipelinePhase > 1 ? <Check className="w-3 h-3 text-[#62dd9e]" /> : null}
-                  <span>SHA-256 Check</span>
+                  <span>Integrity Check</span>
                 </div>
               </div>
 
