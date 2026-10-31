@@ -6,6 +6,7 @@ import { CompanySettings } from './components/CompanySettings.jsx';
 import { UploadZone } from './components/UploadZone.jsx';
 import { DocumentList } from './components/DocumentList.jsx';
 import { DocumentReviewModal } from './components/DocumentReviewModal.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ReuploadModal } from './components/ReuploadModal.jsx';
 import { ManualEntryModal } from './components/ManualEntryModal.jsx';
 import { ActivityRecordsList } from './components/ActivityRecordsList.jsx';
@@ -1080,6 +1081,7 @@ export function App() {
               }}
             />
           )}
+
           </div>
         </main>
 
@@ -1090,7 +1092,8 @@ export function App() {
       </div>
 
       {/* Review & Field Verification Modal */}
-      <DocumentReviewModal
+      <ErrorBoundary onReset={() => setReviewDoc(null)}>
+        <DocumentReviewModal
         document={reviewDoc}
         isOpen={Boolean(reviewDoc)}
         onClose={() => setReviewDoc(null)}
@@ -1106,6 +1109,7 @@ export function App() {
           handleReprocess(doc);
         }}
       />
+      </ErrorBoundary>
 
       {/* Re-upload Modal for ambiguous / low-confidence documents */}
       <ReuploadModal

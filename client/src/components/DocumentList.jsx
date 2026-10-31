@@ -177,7 +177,7 @@ export function DocumentList({
                         <div className="flex items-center space-x-1.5 flex-wrap gap-1">
                           <RelevanceBadge relevance={doc.carbonRelevance} />
                           {doc.scope && (
-                            <ScopeBadge scope={doc.scope} />
+                            <ScopeBadge scope={doc.scope} multiScopeSummary={doc.multiScopeSummary} />
                           )}
                         </div>
                         <div className="text-[11px] text-[#d8e6de] font-medium">
@@ -215,6 +215,29 @@ export function DocumentList({
                         <span className="text-amber-300 italic font-mono text-[11px]">Identical duplicate file</span>
                       ) : isIrrelevant ? (
                         <span className="text-[#9aada2] italic text-[11px]">Non-carbon document</span>
+                      ) : doc.scope === 'MULTI_SCOPE' || (doc.lineItems && doc.lineItems.length > 0) ? (
+                        <div className="font-mono text-[#d8e6de] space-y-1">
+                          <div className="flex items-center space-x-1.5 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/40 text-[10px] font-bold">
+                              {doc.multiScopeSummary?.totalRows || doc.lineItems?.length || 0} Ledger Items
+                            </span>
+                            {doc.multiScopeSummary?.distinctScopes?.length > 0 && (
+                              <span className="text-[10px] text-[#9aada2]">
+                                ({doc.multiScopeSummary.distinctScopes.map(s => s.replace('SCOPE_', 'S')).join(', ')})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2 flex-wrap">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/40">
+                              &asymp; {doc.multiScopeSummary?.netKg != null ? `+${doc.multiScopeSummary.netKg}` : (doc.suggestedEmissions?.emissionsKg != null ? `+${doc.suggestedEmissions.emissionsKg}` : 0)} kg CO2e
+                            </span>
+                            {doc.multiScopeSummary?.offsetKg > 0 && (
+                              <span className="text-[9px] text-emerald-400 font-mono">
+                                (-{doc.multiScopeSummary.offsetKg} kg offset)
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       ) : doc.extractedFields?.quantity ? (
                         <div className="font-mono text-[#d8e6de]">
                           <span className="font-bold text-white">{doc.extractedFields.quantity}</span>{' '}

@@ -373,6 +373,140 @@ export async function reviewDocument(req, res) {
       return res.json({ success: true, message: 'Document marked as rejected.', document: doc });
     }
 
+    const isMultiScopeDoc = doc.scope === 'MULTI_SCOPE' || (doc.lineItems && doc.lineItems.length > 0);
+
+    if (isMultiScopeDoc) {
+      // 1. Process Multi-Scope Tabular Approval
+      const itemsToProcess = req.body.lineItems || doc.lineItems || [];
+      const updatedLineItems = [];
+
+      for (const item of itemsToProcess) {
+        let emissions = item.emissions;
+        // Recalculate if emissions missing or non-positive while quantity is valid
+        if (!emissions || emissions.emissionsKg == null) {
+          try {
+            emissions = await calculateCarbonEmissions({
+              category: item.category,
+              scope: item.scope,
+              quantity: item.quantity,
+              unit: item.unit,
+              categoryData: item.categoryData,
+              supplierName: item.supplierName,
+              description: item.description,
+            });
+          } catch (calcErr) {
+            console.error(`Error calculating emissions for row ${item.rowNumber}:`, calcErr);
+          }
+        }
+
+        updatedLineItems.push({
+          ...item,
+          emissions: emissions || item.emissions || {},
+          isIncluded: item.isIncluded !== false,
+        });
+      }
+
+      doc.lineItems = updatedLineItems;
+
+      // Re-aggregate multiScopeSummary
+      let s1 = 0;
+      let s2 = 0;
+      let s3 = 0;
+      let offset = 0;
+      let validCount = 0;
+      const scopesPresent = new Set();
+      const includedValidItems = [];
+
+      for (const item of doc.lineItems) {
+        if (item.isIncluded !== false) {
+          validCount++;
+          if (item.scope) scopesPresent.add(item.scope);
+          const e = item.emissions || {};
+          const kg = Number(e.emissionsKg || 0);
+          if (e.isNegativeOffset || kg < 0) {
+            offset += Math.abs(kg);
+          } else {
+            if (item.scope === 'SCOPE_1') s1 += kg;
+            else if (item.scope === 'SCOPE_2') s2 += kg;
+            else s3 += kg;
+          }
+          includedValidItems.push(item);
+        }
+      }
+
+      if (includedValidItems.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot approve document with 0 included line items. Please include at least one row.',
+        });
+      }
+
+      const netKg = Number(Math.max(0, (s1 + s2 + s3) - offset).toFixed(2));
+      doc.multiScopeSummary = {
+        scope1Kg: Number(s1.toFixed(2)),
+        scope2Kg: Number(s2.toFixed(2)),
+        scope3Kg: Number(s3.toFixed(2)),
+        offsetKg: Number(offset.toFixed(2)),
+        netKg,
+        totalRows: doc.lineItems.length,
+        validRows: validCount,
+        distinctScopes: Array.from(scopesPresent),
+      };
+
+      doc.suggestedEmissions = {
+        emissionsKg: netKg,
+        emissionsTonnes: Number((netKg / 1000).toFixed(4)),
+        totalCo2e: netKg,
+        scope1Co2e: Number(s1.toFixed(2)),
+        scope2Co2e: Number(s2.toFixed(2)),
+        scope3Co2e: Number(s3.toFixed(2)),
+        netOffsetCo2e: Number(offset.toFixed(2)),
+        methodology: 'GHG Protocol Multi-Scope Consolidated Inventory',
+        factorKey: 'MULTI_TIER_CONSOLIDATED',
+        factorName: `Consolidated Multi-Scope Ledger (${includedValidItems.length} activities)`,
+      };
+
+      doc.reviewStatus = 'APPROVED';
+      doc.processingStatus = 'COMPLETED';
+      doc.validationErrors = [];
+      await doc.save();
+
+      // Clear any prior activities for this document
+      await ActivityRecord.deleteMany({ documentId: doc._id, companyId: req.company._id });
+
+      // Bulk insert individual activity records
+      const activityDocs = includedValidItems.map((item) => ({
+        companyId: req.company._id,
+        documentId: doc._id,
+        recordSource: 'EXTRACTED',
+        category: item.category || 'SUPPLIER_INVOICE',
+        scope: item.scope && ['SCOPE_1', 'SCOPE_2', 'SCOPE_3'].includes(item.scope) ? item.scope : 'SCOPE_3',
+        activityDate: item.activityDate || doc.createdAt || new Date(),
+        quantity: item.quantity || 0,
+        unit: item.unit || 'unit',
+        supplierName: item.supplierName || '',
+        description: item.description || `Row ${item.rowNumber} from ${doc.originalFileName}`,
+        categoryData: {
+          ...(item.categoryData || {}),
+          currency: 'INR',
+          rowIndex: item.rowIndex,
+          rowNumber: item.rowNumber,
+        },
+        carbonEmissions: item.emissions || {},
+        verificationStatus: 'APPROVED',
+      }));
+
+      const createdActivities = await ActivityRecord.insertMany(activityDocs);
+
+      return res.json({
+        success: true,
+        message: `Consolidated ledger approved. ${createdActivities.length} individual activity records recorded across ${Array.from(scopesPresent).join(', ')}.`,
+        document: doc,
+        activityRecords: createdActivities,
+        multiScopeSummary: doc.multiScopeSummary,
+      });
+    }
+
     const fields = correctedFields || doc.extractedFields || {};
     const category = fields.category || 'SUPPLIER_INVOICE';
 
