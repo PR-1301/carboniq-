@@ -16,13 +16,13 @@ import {
   Flame,
   Truck,
   Recycle,
-  Leaf,
   ChevronDown,
   ChevronUp,
   Sparkles,
   Calculator,
   ShieldCheck,
   TrendingDown,
+  ExternalLink,
 } from 'lucide-react';
 import { getPreviewUrl, submitDocumentReview } from '../services/api.js';
 import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } from './StatusBadge.jsx';
@@ -69,7 +69,9 @@ export function DocumentReviewModal({
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
-  const [activeTab, setActiveTab] = useState('FIELDS'); // 'FIELDS' | 'TEXT' | 'PREVIEW'
+  const [activeTab, setActiveTab] = useState('FIELDS'); // 'FIELDS' | 'TEXT'
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [suggestedEmissions, setSuggestedEmissions] = useState(null);
 
   useEffect(() => {
     if (document) {
@@ -102,10 +104,7 @@ export function DocumentReviewModal({
     }
   }, [document]);
 
-  const [suggestedEmissions, setSuggestedEmissions] = useState(null);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
-
-  // Dynamically recalculate suggested carbon emissions according to CARBON_EMISSION_CALCULATION_METHODS.md
+  // Dynamically recalculate suggested carbon emissions according to verified emission factor models
   useEffect(() => {
     const calc = calculateLocalEmissions({
       category,
@@ -124,15 +123,15 @@ export function DocumentReviewModal({
   const getCategoryIcon = () => {
     if (category === 'WASTE') {
       return disposalMethod === 'Recycled' ? (
-        <Recycle className="w-4 h-4 text-emerald-400" />
+        <Recycle className="w-4 h-4 text-[#62dd9e]" />
       ) : (
         <Recycle className="w-4 h-4 text-purple-400" />
       );
     }
-    if (category === 'FUEL') return <Flame className="w-4 h-4 text-orange-400" />;
+    if (category === 'FUEL') return <Flame className="w-4 h-4 text-amber-400" />;
     if (category === 'TRANSPORTATION') return <Truck className="w-4 h-4 text-sky-400" />;
-    if (category === 'ELECTRICITY') return <Zap className="w-4 h-4 text-amber-400" />;
-    return <Calculator className="w-4 h-4 text-emerald-400" />;
+    if (category === 'ELECTRICITY') return <Zap className="w-4 h-4 text-[#b5f568]" />;
+    return <Calculator className="w-4 h-4 text-[#62dd9e]" />;
   };
 
   const defaultScopeForCategory = (cat) => {
@@ -189,7 +188,7 @@ export function DocumentReviewModal({
       });
 
       if (!res.success) {
-        setErrorMessage(res.error || 'Failed to approve document');
+        setErrorMessage(res.error || 'Failed to verify and record activity');
         if (res.validationErrors) {
           setValidationErrors(res.validationErrors);
         }
@@ -199,7 +198,7 @@ export function DocumentReviewModal({
       if (onSaved) onSaved(res.document);
       onClose();
     } catch (err) {
-      setErrorMessage(err.message || 'Error saving document review');
+      setErrorMessage(err.message || 'Error recording activity to ledger');
     } finally {
       setSaving(false);
     }
@@ -229,51 +228,61 @@ export function DocumentReviewModal({
   const isPdf = document.mimeType === 'application/pdf';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:px-6 border-b border-slate-800 bg-slate-900/90">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-emerald-950/60 border border-emerald-700/60 text-emerald-400">
-              <FileText className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#030906]/90 backdrop-blur-md overflow-y-auto">
+      <div className="bg-[#071610] border-2 border-[#62dd9e]/40 rounded-2xl w-full max-w-6xl shadow-[0_24px_80px_rgba(0,0,0,0.9),0_0_48px_rgba(98,221,158,0.2)] flex flex-col max-h-[92vh] overflow-hidden relative animate-modal-enter">
+        {/* Top Specular Rim */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#b5f568] to-transparent z-20 pointer-events-none" />
+
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-4 sm:px-6 border-b border-[#62dd9e]/20 bg-[#091f16] backdrop-blur-xl">
+          <div className="flex items-center space-x-3.5 min-w-0">
+            <div className="p-2.5 rounded-xl bg-[#0e2a1e] border border-[#b5f568]/50 text-[#b5f568] shadow-[0_0_16px_rgba(181,245,104,0.3)] shrink-0">
+              <FileText className="w-5 h-5 text-[#b5f568]" />
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-white truncate max-w-md">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-md font-mono tracking-tight">
                 {document.originalFileName}
               </h3>
               <div className="flex items-center space-x-2 mt-1 flex-wrap gap-1">
                 <RelevanceBadge relevance={document.carbonRelevance} />
-                <ProcessingStatusBadge status={document.processingStatus} />
-                <ReviewStatusBadge status={document.reviewStatus} />
+                {document.reviewStatus === 'REQUIRED' ? (
+                  <ReviewStatusBadge status="REQUIRED" />
+                ) : (
+                  <ProcessingStatusBadge status={document.processingStatus} />
+                )}
                 <ScopeBadge scope={scope} />
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 shrink-0">
             {isDataUnclearOrUndiscoverable && (
               <>
                 <button
+                  type="button"
                   onClick={() => onTriggerReupload(document)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-600/60 transition shadow-sm"
-                  title="Document data is unclear or missing. Upload a clearer replacement."
+                  className="hidden sm:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#142d1f] hover:bg-[#1b3d2b] text-[#b5f568] border border-[#b5f568]/50 shadow-[0_0_12px_rgba(181,245,104,0.2)] transition cursor-pointer"
+                  title="Upload a clearer file replacement"
                 >
-                  <Upload className="w-3.5 h-3.5" />
+                  <Upload className="w-3.5 h-3.5 text-[#b5f568]" />
                   <span>Re-upload Clearer</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => onTriggerReprocess(document)}
-                  className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
-                  title="Data not discovered. Re-run automated extraction."
+                  className="hidden sm:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#0d2218] hover:bg-[#143324] text-[#62dd9e] hover:text-white border border-[#62dd9e]/40 transition cursor-pointer"
+                  title="Re-run automated extraction"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-3.5 h-3.5 text-[#62dd9e]" />
                   <span>Re-extract</span>
                 </button>
               </>
             )}
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-2 rounded-xl text-[#9aada2] hover:text-white hover:bg-white/[0.08] transition cursor-pointer"
+              aria-label="Close review dialog"
             >
               <X className="w-5 h-5" />
             </button>
@@ -281,386 +290,378 @@ export function DocumentReviewModal({
         </div>
 
         {/* Content Body: Split View */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-          {/* Left Column: Original Document Preview (5 cols) */}
-          <div className="lg:col-span-6 border-b lg:border-b-0 lg:border-r border-slate-800 p-4 bg-slate-950/50 flex flex-col overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 text-xs text-slate-400 font-medium">
-              <div className="flex items-center space-x-1.5">
-                <Eye className="w-4 h-4 text-emerald-400" />
-                <span>Original Document Preview</span>
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#05110c]">
+          {/* Left Column: Original Document Preview (6 cols) */}
+          <div className="lg:col-span-6 border-b lg:border-b-0 lg:border-r border-[#62dd9e]/20 p-4 sm:p-5 bg-[#030c08] flex flex-col overflow-y-auto min-h-0 space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#62dd9e]/20 text-xs font-mono text-[#9aada2]">
+              <div className="flex items-center space-x-2">
+                <Eye className="w-4 h-4 text-[#62dd9e]" />
+                <span className="font-bold text-white uppercase tracking-wider text-[11px]">Technical Document Preview</span>
               </div>
               <a
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-emerald-400 hover:underline flex items-center space-x-1"
+                className="text-[#b5f568] hover:underline flex items-center space-x-1 text-[11px] font-mono font-medium"
               >
                 <span>Open in new tab</span>
+                <ExternalLink className="w-3 h-3 text-[#b5f568]" />
               </a>
             </div>
 
-            <div className="flex-1 flex items-center justify-center min-h-[350px] bg-slate-900 rounded-xl border border-slate-800 p-2 overflow-hidden">
+            {/* Document Preview Frame: SHARP EDGES FOR THIS SITUATION */}
+            <div className="flex-1 flex items-center justify-center min-h-[380px] bg-[#020704] rounded-none border-2 border-[#62dd9e]/40 shadow-[0_0_24px_rgba(98,221,158,0.15)] p-0 overflow-hidden relative group">
+              {/* Corner Reticle Accents for Technical Drafting Effect */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#b5f568] z-10 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#b5f568] z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#b5f568] z-10 pointer-events-none" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#b5f568] z-10 pointer-events-none" />
+
               {isImage ? (
                 <img
                   src={previewUrl}
                   alt={document.originalFileName}
-                  className="max-h-[500px] w-auto max-w-full object-contain rounded"
+                  className="max-h-[520px] w-auto max-w-full object-contain rounded-none block"
                 />
               ) : isPdf ? (
                 <iframe
                   src={previewUrl}
                   title="PDF Preview"
-                  className="w-full h-[520px] rounded border border-slate-700"
+                  className="w-full h-[520px] rounded-none border-0 bg-white block"
                 />
               ) : (
-                <div className="text-center p-6 text-slate-400 text-xs">
-                  <FileText className="w-12 h-12 text-slate-600 mx-auto mb-2" />
+                <div className="text-center p-8 text-[#9aada2] text-xs font-mono">
+                  <FileText className="w-12 h-12 text-[#62dd9e]/40 mx-auto mb-2" />
                   <p>Document preview not supported for {document.mimeType}.</p>
-                  <p className="mt-1 text-slate-500">Inspect extracted tabular contents in the Extracted Text tab.</p>
+                  <p className="mt-1 text-[#71857c]">Inspect parsed contents in the Raw Extracted Text tab.</p>
                 </div>
               )}
             </div>
 
             {/* Classification explanation */}
             {document.classificationReason && (
-              <div className="mt-3 p-3 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-slate-400">
-                <span className="font-semibold text-slate-300 block mb-1">Classification Determination:</span>
-                {document.classificationReason}
+              <div className="p-3.5 rounded-xl bg-[#092217] border border-[#62dd9e]/30 text-xs text-[#d8e6de] shadow-sm shrink-0">
+                <div className="flex items-center space-x-1.5 text-[#b5f568] font-mono font-bold uppercase tracking-wider text-[11px] mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#b5f568]" />
+                  <span>Classification Determination</span>
+                </div>
+                <p className="leading-relaxed text-[#a8bcaf]">{document.classificationReason}</p>
               </div>
             )}
           </div>
 
           {/* Right Column: Editable Extracted Fields & Validation (6 cols) */}
-          <div className="lg:col-span-6 p-4 sm:p-6 overflow-y-auto flex flex-col justify-between space-y-4">
-            <div>
-              {/* Tab Selector */}
-              <div className="flex space-x-2 border-b border-slate-800 pb-2 mb-4">
-                <button
-                  onClick={() => setActiveTab('FIELDS')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    activeTab === 'FIELDS'
-                      ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/60'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Extracted Fields & Verification
-                </button>
-                <button
-                  onClick={() => setActiveTab('TEXT')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    activeTab === 'TEXT'
-                      ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/60'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Raw Extracted Text
-                </button>
+          <div className="lg:col-span-6 p-4 sm:p-6 overflow-y-auto min-h-0 space-y-4 bg-[#071911]">
+            {/* Tab Selector */}
+            <div className="flex space-x-2 border-b border-[#62dd9e]/20 pb-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('FIELDS')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  activeTab === 'FIELDS'
+                    ? 'bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/50 shadow-[0_0_14px_rgba(181,245,104,0.25)]'
+                    : 'text-[#9aada2] hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                Extracted Fields & Verification
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('TEXT')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                  activeTab === 'TEXT'
+                    ? 'bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/50 shadow-[0_0_14px_rgba(181,245,104,0.25)]'
+                    : 'text-[#9aada2] hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                Raw Extracted Text
+              </button>
+            </div>
+
+            {/* Permanent Decision Lock Banner */}
+            {isPermanentlyReviewed && (
+              <div className="p-3.5 rounded-xl bg-[#0d261a] border border-[#62dd9e]/40 text-[#d8e6de] text-xs font-mono flex items-center space-x-2.5 shadow-sm">
+                <Lock className="w-4 h-4 text-[#62dd9e] shrink-0" />
+                <span>
+                  This document has been permanently <strong>{document.reviewStatus}</strong>. Decisions cannot be altered.
+                </span>
               </div>
+            )}
 
-              {/* Permanent Decision Lock Banner */}
-              {isPermanentlyReviewed && (
-                <div className="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-300 text-xs flex items-center space-x-2.5 mb-4 shadow-inner">
-                  <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>
-                    This document has been permanently <strong>{document.reviewStatus}</strong>. Decisions cannot be altered or re-evaluated.
-                  </span>
-                </div>
-              )}
-
-              {/* Unclear or Undiscoverable Data Alert Banner */}
-              {!isPermanentlyReviewed && isDataUnclearOrUndiscoverable && (
-                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-600/50 text-amber-200 text-xs mb-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <div className="font-semibold flex items-center space-x-1.5 text-amber-300">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
-                        <span>Data Unclear or Not Discovered</span>
+            {/* Unified Verification Advisory Alert Banner */}
+            {!isPermanentlyReviewed && (isDataUnclearOrUndiscoverable || validationErrors.length > 0) && (
+              <div className="p-4 rounded-xl bg-[#14281c] border border-amber-500/50 text-amber-200 text-xs shadow-lg space-y-2.5 animate-fade-in">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="font-bold text-amber-300 font-mono tracking-tight uppercase text-[11px]">
+                        Verification Advisory
                       </div>
-                      <p className="text-amber-200/80 text-[11px] leading-relaxed">
-                        Required activity quantities could not be reliably extracted. If the original file is blurry or skewed, you can upload a clearer replacement or retry AI extraction.
+                      <p className="text-amber-200/85 text-[11px] mt-0.5 leading-relaxed">
+                        Review highlighted activity fields below. If the scan is blurry or skewed, upload a clearer replacement or re-run autonomous extraction.
                       </p>
                     </div>
-                    <div className="flex items-center space-x-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => onTriggerReupload(document)}
-                        className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs transition shadow-sm"
-                        title="Upload a clearer file replacement"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Re-upload</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onTriggerReprocess(document)}
-                        className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-medium text-xs transition"
-                        title="Retry extraction"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Re-extract</span>
-                      </button>
-                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 shrink-0 sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => onTriggerReupload(document)}
+                      className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      title="Re-upload"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Validation Warnings Alert */}
-              {!isPermanentlyReviewed && validationErrors.length > 0 && (
-                <div className="p-3.5 rounded-xl bg-amber-950/50 border border-amber-700/60 text-amber-200 text-xs space-y-1 mb-4">
-                  <div className="font-semibold flex items-center space-x-1.5 text-amber-300">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>User Verification Required:</span>
-                  </div>
-                  <ul className="list-disc list-inside space-y-0.5 text-amber-200/90 pl-1">
+                {validationErrors.length > 0 && (
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-300/95 pl-1 font-mono">
                     {validationErrors.map((err, i) => (
                       <li key={i}>{err}</li>
                     ))}
                   </ul>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              {errorMessage && (
-                <div className="p-3 rounded-lg bg-red-950/60 border border-red-700 text-red-200 text-xs mb-4">
-                  {errorMessage}
-                </div>
-              )}
+            {errorMessage && (
+              <div className="p-3.5 rounded-xl bg-[#260e12] border border-rose-500/50 text-rose-200 text-xs font-mono">
+                {errorMessage}
+              </div>
+            )}
 
-              {activeTab === 'FIELDS' ? (
-                <fieldset disabled={isPermanentlyReviewed} className="space-y-3.5 disabled:opacity-80">
-                  {/* Category & Scope Selector Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Activity Category <span className="text-emerald-400">*</span>
-                      </label>
-                      <select
-                        value={category}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                      >
-                        <option value="ELECTRICITY">Electricity / Power (Scope 2)</option>
-                        <option value="FUEL">Stationary / Mobile Fuel (Scope 1)</option>
-                        <option value="TRANSPORTATION">Transportation & Freight (Scope 1 / 3)</option>
-                        <option value="WASTE">Waste & Disposal (Scope 3)</option>
-                        <option value="SUPPLIER_INVOICE">General Supplier Invoice / Spend</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        GHG Protocol Scope <span className="text-emerald-400">*</span>
-                      </label>
-                      <select
-                        value={scope}
-                        onChange={(e) => setScope(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                      >
-                        <option value="SCOPE_1">Scope 1 (Direct Fuel / Fleet Emissions)</option>
-                        <option value="SCOPE_2">Scope 2 (Indirect Electricity Emissions)</option>
-                        <option value="SCOPE_3">Scope 3 (Supply Chain, Freight, Waste)</option>
-                      </select>
-                    </div>
+            {activeTab === 'FIELDS' ? (
+              <fieldset disabled={isPermanentlyReviewed} className="space-y-4 disabled:opacity-75">
+                {/* Category & Scope Selector Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Activity Category <span className="text-[#b5f568]">*</span>
+                    </label>
+                    <select
+                      value={category}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    >
+                      <option value="ELECTRICITY">Electricity / Power (Scope 2)</option>
+                      <option value="FUEL">Stationary / Mobile Fuel (Scope 1)</option>
+                      <option value="TRANSPORTATION">Transportation & Freight (Scope 1 / 3)</option>
+                      <option value="WASTE">Waste & Disposal (Scope 3)</option>
+                      <option value="SUPPLIER_INVOICE">General Supplier Invoice / Spend</option>
+                    </select>
                   </div>
 
-                  {/* Date & Quantity Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Activity Date / Billing Period <span className="text-emerald-400">*</span>
-                      </label>
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      GHG Protocol Scope <span className="text-[#b5f568]">*</span>
+                    </label>
+                    <select
+                      value={scope}
+                      onChange={(e) => setScope(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-[#b5f568] font-bold focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    >
+                      <option value="SCOPE_1">Scope 1 (Direct Fuel / Fleet Emissions)</option>
+                      <option value="SCOPE_2">Scope 2 (Indirect Electricity Emissions)</option>
+                      <option value="SCOPE_3">Scope 3 (Supply Chain, Freight, Waste)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Date & Quantity Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Activity Date / Period <span className="text-[#b5f568]">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={activityDate}
+                      onChange={(e) => setActivityDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Quantity & Unit <span className="text-[#b5f568]">*</span>
+                    </label>
+                    <div className="flex space-x-2">
                       <input
-                        type="date"
-                        value={activityDate}
-                        onChange={(e) => setActivityDate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
+                        type="number"
+                        step="any"
+                        placeholder="e.g. 1450"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        className="w-2/3 px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                      />
+                      <input
+                        type="text"
+                        placeholder="kWh, L"
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        className="w-1/3 px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-[#b5f568] font-bold uppercase focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
                       />
                     </div>
+                  </div>
+                </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Quantity <span className="text-emerald-400">*</span>
-                      </label>
-                      <div className="flex space-x-1.5">
-                        <input
-                          type="number"
-                          step="any"
-                          placeholder="e.g. 1450"
-                          value={quantity}
-                          onChange={(e) => setQuantity(e.target.value)}
-                          className="w-2/3 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Unit (kWh, L)"
-                          value={unit}
-                          onChange={(e) => setUnit(e.target.value)}
-                          className="w-1/3 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 uppercase font-mono disabled:bg-slate-900 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
+                {/* Supplier & Description */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Supplier / Vendor Name {category === 'SUPPLIER_INVOICE' && <span className="text-[#b5f568]">*</span>}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Tata Power / Indian Oil"
+                      value={supplierName}
+                      onChange={(e) => setSupplierName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    />
                   </div>
 
-                  {/* Supplier & Description */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Description / Notes
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Factory monthly consumption"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                {/* Category-Specific Dynamic Fields */}
+                {category === 'FUEL' && (
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Fuel Type <span className="text-[#b5f568]">*</span>
+                    </label>
+                    <select
+                      value={fuelType}
+                      onChange={(e) => setFuelType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    >
+                      <option value="">Select fuel type...</option>
+                      <option value="Diesel">Diesel (High Speed Diesel)</option>
+                      <option value="Petrol / Gasoline">Petrol / Gasoline</option>
+                      <option value="Natural Gas (CNG)">Natural Gas (CNG)</option>
+                      <option value="LPG">LPG</option>
+                      <option value="Heavy Fuel Oil">Furnace Oil / HFO</option>
+                    </select>
+                  </div>
+                )}
+
+                {category === 'TRANSPORTATION' && (
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                      Transportation Mode <span className="text-[#b5f568]">*</span>
+                    </label>
+                    <select
+                      value={transportMode}
+                      onChange={(e) => setTransportMode(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                    >
+                      <option value="">Select mode...</option>
+                      <option value="Road / Truck">Road Freight / Truck</option>
+                      <option value="Air Freight">Air Freight</option>
+                      <option value="Sea Freight">Sea Freight</option>
+                      <option value="Rail">Rail Cargo</option>
+                    </select>
+                  </div>
+                )}
+
+                {category === 'WASTE' && (
+                  <div className="grid grid-cols-2 gap-3.5">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Supplier / Vendor Name {category === 'SUPPLIER_INVOICE' && <span className="text-emerald-400">*</span>}
+                      <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                        Waste Type <span className="text-[#b5f568]">*</span>
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Tata Power / Indian Oil"
-                        value={supplierName}
-                        onChange={(e) => setSupplierName(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
+                        placeholder="e.g. Hazardous, Scrap"
+                        value={wasteType}
+                        onChange={(e) => setWasteType(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
                       />
                     </div>
-
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Description / Notes</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Factory monthly consumption"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                      />
+                      <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-1.5 font-semibold">
+                        Disposal Method
+                      </label>
+                      <select
+                        value={disposalMethod}
+                        onChange={(e) => setDisposalMethod(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-xs font-mono text-white focus:outline-none focus:border-[#b5f568] focus:ring-2 focus:ring-[#b5f568]/40 transition-all disabled:opacity-50"
+                      >
+                        <option value="Landfill">Landfill</option>
+                        <option value="Recycled">Recycled</option>
+                        <option value="Incineration">Incineration</option>
+                        <option value="Composted">Composted</option>
+                      </select>
                     </div>
                   </div>
+                )}
+              </fieldset>
+            ) : (
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7dd9a3] mb-2 font-semibold">
+                  Raw Extracted Text (Autonomous OCR)
+                </label>
+                <textarea
+                  readOnly
+                  value={document.extractedText || 'No text content available.'}
+                  rows={12}
+                  className="w-full p-3.5 rounded-xl bg-[#030c08] font-mono text-xs text-[#d8e6de] border border-[#62dd9e]/30 focus:outline-none leading-relaxed"
+                />
+              </div>
+            )}
 
-                  {/* Category-Specific Fields */}
-                  {category === 'FUEL' && (
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Fuel Type <span className="text-emerald-400">*</span>
-                      </label>
-                      <select
-                        value={fuelType}
-                        onChange={(e) => setFuelType(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                      >
-                        <option value="">Select fuel type...</option>
-                        <option value="Diesel">Diesel</option>
-                        <option value="Petrol / Gasoline">Petrol / Gasoline</option>
-                        <option value="Natural Gas (CNG)">Natural Gas (CNG)</option>
-                        <option value="LPG">LPG</option>
-                        <option value="Heavy Fuel Oil">Heavy Fuel Oil</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {category === 'TRANSPORTATION' && (
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Transportation Mode <span className="text-emerald-400">*</span>
-                      </label>
-                      <select
-                        value={transportMode}
-                        onChange={(e) => setTransportMode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                      >
-                        <option value="">Select mode...</option>
-                        <option value="Road / Truck">Road / Truck</option>
-                        <option value="Air Freight">Air Freight</option>
-                        <option value="Sea Freight">Sea Freight</option>
-                        <option value="Rail">Rail</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {category === 'WASTE' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
-                          Waste Type <span className="text-emerald-400">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Hazardous, Scrap, Cardboard"
-                          value={wasteType}
-                          onChange={(e) => setWasteType(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">Disposal Method</label>
-                        <select
-                          value={disposalMethod}
-                          onChange={(e) => setDisposalMethod(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-500 disabled:bg-slate-900 disabled:cursor-not-allowed"
-                        >
-                          <option value="Landfill">Landfill</option>
-                          <option value="Recycled">Recycled</option>
-                          <option value="Incineration">Incineration</option>
-                          <option value="Composted">Composted</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </fieldset>
-              ) : (
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Raw Extracted Text (Method: {document.extractionMethod})
-                  </label>
-                  <textarea
-                    readOnly
-                    value={document.extractedText || 'No text content available.'}
-                    rows={12}
-                    className="w-full p-3 rounded-lg bg-slate-950 font-mono text-xs text-slate-300 border border-slate-800 focus:outline-none"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* ============================================================== */}
-            {/* SUGGESTED CARBON EMISSIONS PANEL (per CARBON_EMISSION_CALCULATION_METHODS.md) */}
-            {/* ============================================================== */}
+            {/* SUGGESTED CARBON EMISSIONS PANEL */}
             <div
-              className={`rounded-xl border p-3.5 sm:p-4 shadow-xl transition-all duration-200 relative overflow-hidden ${
+              className={`rounded-2xl border-2 p-4 sm:p-5 shadow-xl transition-all duration-300 relative overflow-hidden shrink-0 ${
                 suggestedEmissions?.isNegativeOffset
-                  ? 'border-emerald-500/60 bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950'
-                  : 'border-slate-700/80 bg-gradient-to-br from-slate-900/95 via-slate-900 to-emerald-950/20'
+                  ? 'border-[#62dd9e] bg-gradient-to-br from-[#0e2a1d] to-[#06140e]'
+                  : 'border-[#62dd9e]/40 bg-gradient-to-br from-[#0a2317] via-[#071910] to-[#040d08]'
               }`}
             >
-              {/* Decorative background glow */}
-              <div
-                className={`absolute -top-10 -right-10 w-36 h-36 rounded-full blur-3xl pointer-events-none ${
-                  suggestedEmissions?.isNegativeOffset ? 'bg-emerald-500/20' : 'bg-cyan-500/10'
-                }`}
-              />
+              {/* Top rim */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#b5f568] to-transparent" />
 
               {/* Panel Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2.5">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between pb-3 border-b border-[#62dd9e]/20 mb-3">
+                <div className="flex items-center space-x-2.5">
                   <div
-                    className={`p-1.5 rounded-lg border ${
+                    className={`p-2 rounded-xl border ${
                       suggestedEmissions?.isNegativeOffset
-                        ? 'bg-emerald-900/50 border-emerald-500/50 text-emerald-400'
-                        : 'bg-slate-800/80 border-slate-700 text-emerald-400'
+                        ? 'bg-[#0f2d1e] border-[#62dd9e]/50 text-[#62dd9e]'
+                        : 'bg-[#102d1e] border-[#b5f568]/50 text-[#b5f568] shadow-[0_0_12px_rgba(181,245,104,0.3)]'
                     }`}
                   >
                     {getCategoryIcon()}
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-white flex items-center space-x-1.5">
-                      <span>Suggested Carbon Emissions</span>
-                      <span className="text-[10px] font-normal text-slate-400">
-                        (from uploaded document)
-                      </span>
+                    <h4 className="text-xs font-bold text-white flex items-center space-x-1.5 font-mono">
+                      <span>Suggested Carbon Footprint</span>
                     </h4>
-                    <p className="text-[10px] text-slate-400">
-                      {suggestedEmissions?.standard || 'GHG Protocol / CEA 2024 Accounting Standard'}
+                    <p className="text-[10px] text-[#7dd9a3] font-mono">
+                      {suggestedEmissions?.standard || 'GHG Protocol & CEA India Baseline'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-1.5">
+                <div className="flex items-center space-x-2">
                   {suggestedEmissions?.isNegativeOffset ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      Avoided Emissions Offset
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#122b1f] text-[#62dd9e] border border-[#62dd9e]/40">
+                      Avoided Emissions
                     </span>
                   ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#102d1e] text-[#d8e6de] border border-[#62dd9e]/30">
                       {suggestedEmissions?.tier || 'IPCC Tier 1'}
                     </span>
                   )}
@@ -670,110 +671,76 @@ export function DocumentReviewModal({
 
               {/* Main Emission Metric */}
               {suggestedEmissions?.isValid ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
                     <div className="flex items-baseline space-x-2">
-                      <span
-                        className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${
-                          suggestedEmissions.isNegativeOffset
-                            ? 'text-emerald-400'
-                            : 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300'
-                        }`}
-                      >
-                        {suggestedEmissions.emissionsKg > 0 ? `+${suggestedEmissions.emissionsKg.toLocaleString()}` : suggestedEmissions.emissionsKg.toLocaleString()}
+                      <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[#b5f568] drop-shadow-[0_0_12px_rgba(181,245,104,0.3)]">
+                        {suggestedEmissions.emissionsKg > 0
+                          ? `+${suggestedEmissions.emissionsKg.toLocaleString()}`
+                          : suggestedEmissions.emissionsKg.toLocaleString()}
                       </span>
-                      <span className="text-xs font-medium text-slate-300">kg CO₂e</span>
-                      <span className="text-xs text-slate-400 font-mono">
-                        ({suggestedEmissions.emissionsTonnes > 0 ? `+${suggestedEmissions.emissionsTonnes}` : suggestedEmissions.emissionsTonnes} tCO₂e)
+                      <span className="text-xs font-bold text-[#b5f568] font-mono">kg CO₂e</span>
+                      <span className="text-xs text-[#7dd9a3] font-mono">
+                        ({suggestedEmissions.emissionsTonnes > 0
+                          ? `+${suggestedEmissions.emissionsTonnes}`
+                          : suggestedEmissions.emissionsTonnes} tCO₂e)
                       </span>
                     </div>
 
                     {suggestedEmissions.isNegativeOffset ? (
-                      <div className="text-[11px] font-medium text-emerald-300 flex items-center space-x-1">
+                      <div className="text-[11px] font-mono text-[#62dd9e] flex items-center space-x-1">
                         <TrendingDown className="w-3.5 h-3.5" />
-                        <span>Net footprint reduction / carbon credit</span>
+                        <span>Net footprint offset</span>
                       </div>
                     ) : (
-                      <div className="text-[10px] text-slate-400">
-                        Factor: <span className="text-slate-200 font-mono">{suggestedEmissions.factorUsed} {suggestedEmissions.factorUnit}</span>
+                      <div className="text-[10px] text-[#7dd9a3] font-mono">
+                        Factor:{' '}
+                        <span className="text-white font-semibold">
+                          {suggestedEmissions.factorUsed} {suggestedEmissions.factorUnit}
+                        </span>
                       </div>
                     )}
                   </div>
 
                   {/* Formula Pill */}
-                  <div className="px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-300 flex items-center justify-between gap-2 overflow-x-auto">
-                    <div className="flex items-center space-x-1.5">
-                      <Calculator className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-slate-400">Formula:</span>
-                      <span className="text-emerald-300">{suggestedEmissions.formula}</span>
+                  <div className="px-3.5 py-2 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 text-[11px] font-mono text-[#d8e6de] flex items-center justify-between gap-2 overflow-x-auto">
+                    <div className="flex items-center space-x-2">
+                      <Calculator className="w-3.5 h-3.5 text-[#b5f568] shrink-0" />
+                      <span className="text-[#7dd9a3]">Formula:</span>
+                      <span className="text-[#b5f568] font-medium">{suggestedEmissions.formula}</span>
                     </div>
                   </div>
-
-                  {/* Layer 2 EEIO Breakdown (Direct vs Upstream) */}
-                  {suggestedEmissions.directKg !== undefined && (
-                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono p-2 rounded-lg bg-slate-950/60 border border-slate-800">
-                      <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px]">Direct Sector Footprint:</span>
-                        <span className="text-cyan-300 font-semibold">{suggestedEmissions.directKg.toLocaleString()} kg CO₂e</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px]">Upstream Leontief Tier N:</span>
-                        <span className="text-emerald-300 font-semibold">{suggestedEmissions.upstreamKg.toLocaleString()} kg CO₂e</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Layer 3 LCA Refinement Hotspot Alert */}
-                  {suggestedEmissions.isHotspotCandidate && (
-                    <div className="flex items-start space-x-2 text-[11px] text-amber-300 bg-amber-950/40 border border-amber-600/40 p-2.5 rounded-lg">
-                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-semibold text-amber-200">Layer 3 LCA Refinement Hotspot Candidate</div>
-                        <div className="text-[10px] text-amber-300/80 mt-0.5 leading-snug">
-                          This spend item exceeds Scope 3 Pareto thresholds. Replace financial proxy with supplier EPD (Environmental Product Declaration) or Bill of Materials when available.
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sustainability Insight / Tip */}
-                  {suggestedEmissions.insights && !suggestedEmissions.isHotspotCandidate && (
-                    <div className="flex items-start space-x-2 text-[11px] text-emerald-300/90 bg-emerald-950/20 border border-emerald-800/30 px-2.5 py-1.5 rounded-lg">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span className="leading-snug">{suggestedEmissions.insights}</span>
-                    </div>
-                  )}
 
                   {/* Expandable Methodology Drawer */}
                   <div className="pt-0.5">
                     <button
                       type="button"
                       onClick={() => setDetailsExpanded(!detailsExpanded)}
-                      className="text-[10px] font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1 transition"
+                      className="text-[10px] font-mono text-[#7dd9a3] hover:text-white flex items-center space-x-1 transition cursor-pointer"
                     >
-                      <span>Methodology & Factor Provenance (CARBON_EMISSION_CALCULATION_METHODS.md)</span>
+                      <span>Statutory Factor Provenance & IPCC Alignment</span>
                       {detailsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
 
                     {detailsExpanded && (
-                      <div className="mt-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                      <div className="mt-2 p-3 rounded-xl bg-[#030c08] border border-[#62dd9e]/30 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-mono">
                         <div>
-                          <span className="text-slate-500 block">Authoritative Source:</span>
-                          <span className="text-slate-300 font-medium">{suggestedEmissions.sourceName}</span>
+                          <span className="text-[#71857c] block">Authoritative Source:</span>
+                          <span className="text-[#d8e6de] font-medium">{suggestedEmissions.sourceName}</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block">Accounting Tier:</span>
-                          <span className="text-slate-300 font-medium">{suggestedEmissions.tier}</span>
+                          <span className="text-[#71857c] block">Accounting Tier:</span>
+                          <span className="text-[#d8e6de] font-medium">{suggestedEmissions.tier}</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block">Applicable Standard:</span>
-                          <span className="text-slate-300 font-medium">{suggestedEmissions.standard}</span>
+                          <span className="text-[#71857c] block">Applicable Standard:</span>
+                          <span className="text-[#d8e6de] font-medium">{suggestedEmissions.standard}</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block">Database Storage:</span>
-                          <span className="text-emerald-400 font-medium flex items-center space-x-1">
-                            <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                            <span>Saved to MongoDB upon approval</span>
+                          <span className="text-[#71857c] block">Ledger Target:</span>
+                          <span className="text-[#62dd9e] font-medium flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3 text-[#62dd9e]" />
+                            <span>Verified Sovereign ESG Activity Record</span>
                           </span>
                         </div>
                       </div>
@@ -781,70 +748,72 @@ export function DocumentReviewModal({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center space-x-3 text-xs text-slate-400 py-1">
-                  <Info className="w-4 h-4 text-amber-400 shrink-0" />
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                <div className="flex items-center space-x-3 text-xs text-[#7dd9a3] py-1 font-mono">
+                  <Info className="w-4 h-4 text-[#b5f568] shrink-0" />
+                  <p className="text-[11px] leading-relaxed">
                     Enter activity quantity (e.g.{' '}
-                    <strong className="text-slate-300">518 kWh</strong> for electricity,{' '}
-                    <strong className="text-slate-300">100 Liters</strong> for fuel) to view real-time suggested carbon emissions according to CARBON_EMISSION_CALCULATION_METHODS.md.
+                    <strong className="text-white">518 kWh</strong> for electricity,{' '}
+                    <strong className="text-white">100 Liters</strong> for fuel) to view real-time statutory carbon emissions calculated against national baselines.
                   </p>
                 </div>
               )}
             </div>
+          </div>
+        </div>
 
-            {/* Modal Actions */}
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-              {isPermanentlyReviewed ? (
-                <div className="flex items-center space-x-2 text-slate-400 text-xs">
-                  <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Permanent status: <strong className="text-white">{document.reviewStatus}</strong></span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleReject}
-                  disabled={saving}
-                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-700/60 text-xs font-medium transition"
-                >
-                  <XCircle className="w-4 h-4" />
-                  <span>Reject Document</span>
-                </button>
-              )}
-
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition"
-                >
-                  {isPermanentlyReviewed ? 'Close' : 'Cancel'}
-                </button>
-                {!isPermanentlyReviewed && (
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    disabled={saving}
-                    className="flex items-center space-x-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-950/50 transition"
-                  >
-                    {saving ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Approve & Save to MongoDB</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
+        {/* Modal Actions Footer: Full-Width Pinned Footer Bar */}
+        <div className="p-4 sm:px-6 border-t-2 border-[#62dd9e]/30 bg-[#091f16] flex items-center justify-between shrink-0 z-20">
+          {isPermanentlyReviewed ? (
+            <div className="flex items-center space-x-2 text-[#7dd9a3] text-xs font-mono">
+              <Lock className="w-3.5 h-3.5 text-[#62dd9e]" />
+              <span>Permanent status: <strong className="text-white">{document.reviewStatus}</strong></span>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleReject}
+              disabled={saving}
+              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#2b0d11] hover:bg-[#3d1318] text-[#fca5a5] border border-rose-500/40 text-xs font-mono font-bold transition cursor-pointer"
+            >
+              <XCircle className="w-4 h-4" />
+              <span>Reject Document</span>
+            </button>
+          )}
+
+          <div className="flex items-center space-x-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2.5 rounded-xl bg-[#0d2218] hover:bg-[#143324] text-[#d8e6de] hover:text-white border border-[#62dd9e]/30 text-xs font-mono font-medium transition cursor-pointer"
+            >
+              {isPermanentlyReviewed ? 'Close' : 'Cancel'}
+            </button>
+            {!isPermanentlyReviewed && (
+              <button
+                type="button"
+                onClick={handleApprove}
+                disabled={saving}
+                className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#b5f568] to-[#62dd9e] hover:from-[#c5fa82] hover:to-[#73e8ac] text-[#05110c] hover:shadow-[0_0_28px_rgba(181,245,104,0.5)] hover:scale-[1.02] active:scale-[0.98] text-xs font-mono font-extrabold transition shadow-md cursor-pointer"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#05110c]" />
+                    <span>Recording...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-[#05110c]" />
+                    <span>Verify & Record Activity</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+export default DocumentReviewModal;
