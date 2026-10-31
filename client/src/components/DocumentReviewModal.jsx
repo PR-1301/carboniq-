@@ -24,6 +24,10 @@ import {
   TrendingDown,
   ExternalLink,
   Download,
+  CheckSquare,
+  Square,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { getPreviewUrl, submitDocumentReview, downloadDocumentReportPDF } from '../services/api.js';
 import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } from './StatusBadge.jsx';
@@ -67,11 +71,16 @@ export function DocumentReviewModal({
   const [wasteType, setWasteType] = useState('');
   const [disposalMethod, setDisposalMethod] = useState('');
 
+  const isMultiScope = document.scope === 'MULTI_SCOPE' || (document.lineItems && document.lineItems.length > 0);
+  const [lineItems, setLineItems] = useState([]);
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [ledgerScopeFilter, setLedgerScopeFilter] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
-  const [activeTab, setActiveTab] = useState('FIELDS'); // 'FIELDS' | 'TEXT'
+  const [activeTab, setActiveTab] = useState(isMultiScope ? 'LEDGER' : 'FIELDS'); // 'LEDGER' | 'FIELDS' | 'TEXT' | 'PREVIEW'
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [suggestedEmissions, setSuggestedEmissions] = useState(null);
 
@@ -90,6 +99,14 @@ export function DocumentReviewModal({
 
   useEffect(() => {
     if (document) {
+      if (document.lineItems && document.lineItems.length > 0) {
+        setLineItems(JSON.parse(JSON.stringify(document.lineItems)));
+        setActiveTab('LEDGER');
+      } else {
+        setLineItems([]);
+        setActiveTab('FIELDS');
+      }
+
       const f = document.extractedFields || {};
       const cat = f.category || (document.documentType === 'FUEL_RECEIPT' ? 'FUEL' : 'ELECTRICITY');
       setCategory(cat);
@@ -136,6 +153,102 @@ export function DocumentReviewModal({
     setSuggestedEmissions(calc);
   }, [category, scope, quantity, unit, fuelType, transportMode, wasteType, disposalMethod, supplierName, description]);
 
+  const multiScopeMetrics = React.useMemo(() => {
+    if (!isMultiScope || !lineItems || lineItems.length === 0) {
+      return { s1: 0, s2: 0, s3: 0, offset: 0, net: 0, includedCount: 0, total: 0 };
+    }
+    let s1 = 0, s2 = 0, s3 = 0, offset = 0, includedCount = 0;
+    for (const item of lineItems) {
+      if (item.isIncluded !== false) {
+        includedCount++;
+        const e = item.emissions || {};
+        const kg = Number(e.emissionsKg || 0);
+        if (e.isNegativeOffset || kg < 0) {
+          offset += Math.abs(kg);
+        } else {
+          if (item.scope === 'SCOPE_1') s1 += kg;
+          else if (item.scope === 'SCOPE_2') s2 += kg;
+          else s3 += kg;
+        }
+      }
+    }
+    const net = Math.max(0, (s1 + s2 + s3) - offset);
+    return {
+      s1: Number(s1.toFixed(2)),
+      s2: Number(s2.toFixed(2)),
+      s3: Number(s3.toFixed(2)),
+      offset: Number(offset.toFixed(2)),
+      net: Number(net.toFixed(2)),
+      includedCount,
+      total: lineItems.length,
+    };
+  }, [isMultiScope, lineItems]);
+
+  const handleToggleRowIncluded = (index) => {
+    if (isPermanentlyReviewed) return;
+    setLineItems((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        isIncluded: next[index].isIncluded === false ? true : false,
+      };
+      return next;
+    });
+  };
+
+  const handleToggleAllRows = (includeAll) => {
+    if (isPermanentlyReviewed) return;
+    setLineItems((prev) =>
+      prev.map((item) => ({ ...item, isIncluded: includeAll }))
+    );
+  };
+
+  const handleRowFieldChange = (index, field, value) => {
+    if (isPermanentlyReviewed) return;
+    setLineItems((prev) => {
+      const next = [...prev];
+      const item = { ...next[index], [field]: value };
+
+      if (field === 'category') {
+        item.scope = defaultScopeForCategory(value);
+        if (!item.unit || item.unit === 'unit' || item.unit === 'units') {
+          item.unit = defaultUnitForCategory(value);
+        }
+      }
+
+      const qtyNum = parseFloat(field === 'quantity' ? value : item.quantity);
+      if (!isNaN(qtyNum) && qtyNum > 0) {
+        const calc = calculateLocalEmissions({
+          category: item.category,
+          scope: item.scope,
+          quantity: qtyNum,
+          unit: item.unit,
+          fuelType: item.categoryData?.fuelType,
+          transportMode: item.categoryData?.transportMode,
+          wasteType: item.categoryData?.wasteType,
+          disposalMethod: item.categoryData?.disposalMethod,
+          supplierName: item.supplierName,
+          description: item.description,
+        });
+
+        if (calc && calc.isValid) {
+          item.emissions = {
+            emissionsKg: calc.emissionsKg,
+            emissionsTonnes: calc.emissionsTonnes,
+            factorUsed: calc.factorUsed,
+            factorUnit: calc.factorUnit,
+            calculationFormula: calc.formula,
+            isNegativeOffset: calc.isNegativeOffset,
+            tier: calc.tier,
+          };
+          item.validationErrors = [];
+        }
+      }
+
+      next[index] = item;
+      return next;
+    });
+  };
 
   const getCategoryIcon = () => {
     if (category === 'WASTE') {
@@ -182,27 +295,41 @@ export function DocumentReviewModal({
     setSaving(true);
     setErrorMessage(null);
 
-    const correctedFields = {
-      category,
-      scope,
-      activityDate: activityDate ? new Date(activityDate) : null,
-      quantity: parseFloat(quantity),
-      unit: unit.trim(),
-      supplierName: supplierName.trim(),
-      description: description.trim(),
-      categoryData: {
-        fuelType,
-        transportMode,
-        wasteType,
-        disposalMethod,
-      },
-    };
-
     try {
-      const res = await submitDocumentReview(document._id, {
-        action: 'APPROVED',
-        correctedFields,
-      });
+      let payload;
+      if (isMultiScope) {
+        if (multiScopeMetrics.includedCount === 0) {
+          setErrorMessage('Cannot record 0 activities. Please include at least one valid row in the ledger.');
+          setSaving(false);
+          return;
+        }
+        payload = {
+          action: 'APPROVED',
+          lineItems,
+        };
+      } else {
+        const correctedFields = {
+          category,
+          scope,
+          activityDate: activityDate ? new Date(activityDate) : null,
+          quantity: parseFloat(quantity),
+          unit: unit.trim(),
+          supplierName: supplierName.trim(),
+          description: description.trim(),
+          categoryData: {
+            fuelType,
+            transportMode,
+            wasteType,
+            disposalMethod,
+          },
+        };
+        payload = {
+          action: 'APPROVED',
+          correctedFields,
+        };
+      }
+
+      const res = await submitDocumentReview(document._id, payload);
 
       if (!res.success) {
         setErrorMessage(res.error || 'Failed to verify and record activity');
@@ -246,7 +373,7 @@ export function DocumentReviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#030906]/90 backdrop-blur-md overflow-y-auto">
-      <div className="bg-[#071610] border-2 border-[#62dd9e]/40 rounded-2xl w-full max-w-6xl shadow-[0_24px_80px_rgba(0,0,0,0.9),0_0_48px_rgba(98,221,158,0.2)] flex flex-col max-h-[92vh] overflow-hidden relative animate-modal-enter">
+      <div className={`bg-[#071610] border-2 border-[#62dd9e]/40 rounded-2xl w-full ${isMultiScope ? 'max-w-7xl' : 'max-w-6xl'} shadow-[0_24px_80px_rgba(0,0,0,0.9),0_0_48px_rgba(98,221,158,0.2)] flex flex-col max-h-[92vh] overflow-hidden relative animate-modal-enter`}>
         {/* Top Specular Rim */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#b5f568] to-transparent z-20 pointer-events-none" />
 
@@ -267,7 +394,7 @@ export function DocumentReviewModal({
                 ) : (
                   <ProcessingStatusBadge status={document.processingStatus} />
                 )}
-                <ScopeBadge scope={scope} />
+                <ScopeBadge scope={isMultiScope ? 'MULTI_SCOPE' : scope} multiScopeSummary={document.multiScopeSummary || multiScopeMetrics} />
               </div>
             </div>
           </div>
@@ -306,7 +433,422 @@ export function DocumentReviewModal({
           </div>
         </div>
 
-        {/* Content Body: Split View */}
+        {/* Content Body */}
+        {isMultiScope ? (
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#05110c]">
+            {/* Multi-Scope Tabs */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-[#62dd9e]/20 bg-[#071a12]">
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('LEDGER')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                    activeTab === 'LEDGER'
+                      ? 'bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/50 shadow-[0_0_14px_rgba(181,245,104,0.25)]'
+                      : 'text-[#9aada2] hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 text-[#62dd9e]" />
+                  <span>Consolidated Ledger ({lineItems.length} Activities)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('PREVIEW')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                    activeTab === 'PREVIEW'
+                      ? 'bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/50 shadow-[0_0_14px_rgba(181,245,104,0.25)]'
+                      : 'text-[#9aada2] hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5 text-[#62dd9e]" />
+                  <span>Document Preview</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('TEXT')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                    activeTab === 'TEXT'
+                      ? 'bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/50 shadow-[0_0_14px_rgba(181,245,104,0.25)]'
+                      : 'text-[#9aada2] hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#62dd9e]" />
+                  <span>Raw Extracted Data</span>
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2 text-xs font-mono text-[#9aada2]">
+                <span className="hidden sm:inline">Active Boundary:</span>
+                <span className="text-[#b5f568] font-bold">
+                  {multiScopeMetrics.includedCount} of {multiScopeMetrics.total} Rows Included
+                </span>
+              </div>
+            </div>
+
+            {/* Permanent Decision Lock Banner */}
+            {isPermanentlyReviewed && (
+              <div className="mx-6 mt-4 p-3.5 rounded-xl bg-[#0d261a] border border-[#62dd9e]/40 text-[#d8e6de] text-xs font-mono flex items-center space-x-2.5 shadow-sm">
+                <Lock className="w-4 h-4 text-[#62dd9e] shrink-0" />
+                <span>
+                  This consolidated multi-scope document has been permanently <strong>{document.reviewStatus}</strong>. Decisions cannot be altered.
+                </span>
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="mx-6 mt-4 p-3.5 rounded-xl bg-[#260e12] border border-rose-500/50 text-rose-200 text-xs font-mono">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Multi-Scope Body Area */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {activeTab === 'LEDGER' && (
+                <>
+                  {/* Executive Metric Cards: Scope 1, Scope 2, Scope 3, Offset, Net Footprint */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {/* Scope 1 */}
+                    <div className="p-3.5 rounded-xl bg-[#092217] border border-emerald-500/30 relative overflow-hidden group">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-emerald-300 font-semibold mb-1">
+                        <span className="flex items-center space-x-1">
+                          <Flame className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Scope 1 (Direct)</span>
+                        </span>
+                      </div>
+                      <div className="text-lg sm:text-xl font-bold font-mono text-white">
+                        +{multiScopeMetrics.s1.toLocaleString()} <span className="text-xs text-emerald-400">kg</span>
+                      </div>
+                      <div className="text-[10px] text-[#9aada2] mt-0.5 truncate">
+                        Fleet & On-site Fuels
+                      </div>
+                    </div>
+
+                    {/* Scope 2 */}
+                    <div className="p-3.5 rounded-xl bg-[#072027] border border-sky-500/30 relative overflow-hidden group">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-sky-300 font-semibold mb-1">
+                        <span className="flex items-center space-x-1">
+                          <Zap className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Scope 2 (Grid)</span>
+                        </span>
+                      </div>
+                      <div className="text-lg sm:text-xl font-bold font-mono text-white">
+                        +{multiScopeMetrics.s2.toLocaleString()} <span className="text-xs text-sky-400">kg</span>
+                      </div>
+                      <div className="text-[10px] text-[#9aada2] mt-0.5 truncate">
+                        CEA Grid (0.82 kg/kWh)
+                      </div>
+                    </div>
+
+                    {/* Scope 3 */}
+                    <div className="p-3.5 rounded-xl bg-[#1b122e] border border-purple-500/30 relative overflow-hidden group">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-purple-300 font-semibold mb-1">
+                        <span className="flex items-center space-x-1">
+                          <Truck className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Scope 3 (Supply)</span>
+                        </span>
+                      </div>
+                      <div className="text-lg sm:text-xl font-bold font-mono text-white">
+                        +{multiScopeMetrics.s3.toLocaleString()} <span className="text-xs text-purple-400">kg</span>
+                      </div>
+                      <div className="text-[10px] text-[#9aada2] mt-0.5 truncate">
+                        Freight & Spend
+                      </div>
+                    </div>
+
+                    {/* Offsets */}
+                    <div className="p-3.5 rounded-xl bg-[#0c2419] border border-teal-500/30 relative overflow-hidden group">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-teal-300 font-semibold mb-1">
+                        <span className="flex items-center space-x-1">
+                          <Recycle className="w-3.5 h-3.5 text-teal-400" />
+                          <span>Avoided Offsets</span>
+                        </span>
+                      </div>
+                      <div className="text-lg sm:text-xl font-bold font-mono text-emerald-400">
+                        -{multiScopeMetrics.offset.toLocaleString()} <span className="text-xs text-emerald-300">kg</span>
+                      </div>
+                      <div className="text-[10px] text-[#9aada2] mt-0.5 truncate">
+                        Recycling Savings
+                      </div>
+                    </div>
+
+                    {/* Net Total */}
+                    <div className="col-span-2 md:col-span-1 p-3.5 rounded-xl bg-gradient-to-br from-[#0c2e1f] to-[#081a13] border-2 border-[#b5f568]/50 shadow-[0_0_20px_rgba(181,245,104,0.15)] relative overflow-hidden group">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-[#b5f568] font-bold mb-1">
+                        <span className="flex items-center space-x-1">
+                          <Sparkles className="w-3.5 h-3.5 text-[#b5f568]" />
+                          <span>Net Footprint</span>
+                        </span>
+                      </div>
+                      <div className="text-lg sm:text-xl font-black font-mono text-[#b5f568]">
+                        +{multiScopeMetrics.net.toLocaleString()} <span className="text-xs text-white">kg</span>
+                      </div>
+                      <div className="text-[10px] text-[#9aada2] mt-0.5">
+                        Net CO2e Total
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter and Control Toolbar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#071a13] border border-white/[0.08]">
+                    <div className="flex items-center space-x-2 flex-wrap gap-2">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#9aada2]" />
+                        <input
+                          type="text"
+                          placeholder="Filter rows by vendor or description..."
+                          value={ledgerSearch}
+                          onChange={(e) => setLedgerSearch(e.target.value)}
+                          className="pl-8 pr-3 py-1.5 rounded-lg bg-[#030c08] border border-white/[0.1] text-xs text-white placeholder-[#9aada2]/50 w-56 focus:outline-none focus:border-[#b5f568]"
+                        />
+                      </div>
+
+                      <select
+                        value={ledgerScopeFilter}
+                        onChange={(e) => setLedgerScopeFilter(e.target.value)}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#030c08] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-[#b5f568]"
+                      >
+                        <option value="">All Scopes (S1/S2/S3)</option>
+                        <option value="SCOPE_1">Scope 1 (Direct)</option>
+                        <option value="SCOPE_2">Scope 2 (Electricity)</option>
+                        <option value="SCOPE_3">Scope 3 (Supply/Spend)</option>
+                      </select>
+                    </div>
+
+                    {!isPermanentlyReviewed && (
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAllRows(true)}
+                          className="px-2.5 py-1 rounded-lg bg-[#122e1f] text-[#b5f568] hover:bg-[#1b422d] border border-[#b5f568]/30 text-[11px] font-mono transition cursor-pointer"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAllRows(false)}
+                          className="px-2.5 py-1 rounded-lg bg-[#1f1216] text-[#fca5a5] hover:bg-[#2e1920] border border-rose-500/30 text-[11px] font-mono transition cursor-pointer"
+                        >
+                          Deselect All
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Interactive Ledger Table */}
+                  <div className="border border-[#62dd9e]/20 rounded-xl overflow-hidden bg-[#030c08]">
+                    <div className="overflow-x-auto max-h-[440px]">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-[#091f16] text-[#9aada2] uppercase text-[10px] font-mono tracking-wider sticky top-0 z-10 border-b border-[#62dd9e]/20">
+                          <tr>
+                            <th className="py-2.5 px-3 w-10 text-center">Inc.</th>
+                            <th className="py-2.5 px-2 w-10 text-center">#</th>
+                            <th className="py-2.5 px-3">Scope Boundary</th>
+                            <th className="py-2.5 px-3">Activity Category</th>
+                            <th className="py-2.5 px-3">Description & Counterparty</th>
+                            <th className="py-2.5 px-3">Quantity & Unit</th>
+                            <th className="py-2.5 px-3 text-right">Calculated CO2e</th>
+                            <th className="py-2.5 px-3 w-16 text-center">Audit</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.06]">
+                          {lineItems
+                            .filter((item) => {
+                              if (ledgerScopeFilter && item.scope !== ledgerScopeFilter) return false;
+                              if (ledgerSearch) {
+                                const q = ledgerSearch.toLowerCase();
+                                const mDesc = item.description?.toLowerCase().includes(q);
+                                const mSupp = item.supplierName?.toLowerCase().includes(q);
+                                if (!mDesc && !mSupp) return false;
+                              }
+                              return true;
+                            })
+                            .map((item, originalIdx) => {
+                              const isIncluded = item.isIncluded !== false;
+                              const isOffset = item.emissions?.isNegativeOffset || (item.emissions?.emissionsKg != null && item.emissions.emissionsKg < 0);
+                              const hasErrors = item.validationErrors && item.validationErrors.length > 0;
+
+                              return (
+                                <tr
+                                  key={item.rowNumber || originalIdx}
+                                  className={`transition-colors ${
+                                    !isIncluded
+                                      ? 'opacity-40 bg-[#060e0a]'
+                                      : originalIdx % 2 === 0
+                                      ? 'bg-[#040d09] hover:bg-[#0c2419]'
+                                      : 'bg-[#030906] hover:bg-[#0c2419]'
+                                  }`}
+                                >
+                                  {/* Checkbox Toggle */}
+                                  <td className="py-3 px-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={isIncluded}
+                                      disabled={isPermanentlyReviewed}
+                                      onChange={() => handleToggleRowIncluded(originalIdx)}
+                                      className="rounded bg-[#081a13] border-white/20 text-[#b5f568] focus:ring-0 focus:ring-offset-0 cursor-pointer w-4 h-4"
+                                    />
+                                  </td>
+
+                                  {/* Row # */}
+                                  <td className="py-3 px-2 text-center font-mono text-[11px] text-[#9aada2]">
+                                    {item.rowNumber || originalIdx + 1}
+                                  </td>
+
+                                  {/* Scope Dropdown */}
+                                  <td className="py-3 px-3 whitespace-nowrap">
+                                    <select
+                                      value={item.scope || 'SCOPE_3'}
+                                      disabled={isPermanentlyReviewed || !isIncluded}
+                                      onChange={(e) => handleRowFieldChange(originalIdx, 'scope', e.target.value)}
+                                      className="bg-[#0b2419] border border-[#62dd9e]/30 rounded-lg px-2 py-1 text-[11px] font-mono font-bold text-white focus:outline-none focus:border-[#b5f568] cursor-pointer disabled:opacity-50"
+                                    >
+                                      <option value="SCOPE_1">Scope 1 (Direct)</option>
+                                      <option value="SCOPE_2">Scope 2 (Electricity)</option>
+                                      <option value="SCOPE_3">Scope 3 (Supply Chain)</option>
+                                    </select>
+                                  </td>
+
+                                  {/* Category Dropdown */}
+                                  <td className="py-3 px-3 whitespace-nowrap">
+                                    <select
+                                      value={item.category || 'SUPPLIER_INVOICE'}
+                                      disabled={isPermanentlyReviewed || !isIncluded}
+                                      onChange={(e) => handleRowFieldChange(originalIdx, 'category', e.target.value)}
+                                      className="bg-[#0b2419] border border-[#62dd9e]/30 rounded-lg px-2 py-1 text-[11px] font-mono text-[#d8e6de] focus:outline-none focus:border-[#b5f568] cursor-pointer disabled:opacity-50"
+                                    >
+                                      <option value="ELECTRICITY">Electricity</option>
+                                      <option value="FUEL">Fuel</option>
+                                      <option value="TRANSPORTATION">Transportation</option>
+                                      <option value="WASTE">Waste & Recycling</option>
+                                      <option value="SUPPLIER_INVOICE">Supplier Spend</option>
+                                    </select>
+                                  </td>
+
+                                  {/* Description & Counterparty */}
+                                  <td className="py-3 px-3 min-w-[200px]">
+                                    <input
+                                      type="text"
+                                      value={item.description || ''}
+                                      disabled={isPermanentlyReviewed || !isIncluded}
+                                      onChange={(e) => handleRowFieldChange(originalIdx, 'description', e.target.value)}
+                                      placeholder="Description..."
+                                      className="w-full bg-[#030906] border border-white/[0.1] rounded px-2 py-1 text-xs text-white truncate focus:outline-none focus:border-[#b5f568] disabled:bg-transparent disabled:border-0"
+                                    />
+                                    <div className="flex items-center space-x-1.5 mt-1">
+                                      <input
+                                        type="text"
+                                        value={item.supplierName || ''}
+                                        disabled={isPermanentlyReviewed || !isIncluded}
+                                        onChange={(e) => handleRowFieldChange(originalIdx, 'supplierName', e.target.value)}
+                                        placeholder="Vendor/Supplier"
+                                        className="w-full bg-transparent border-0 text-[10px] text-[#9aada2] px-1 py-0 truncate focus:outline-none focus:text-white"
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* Quantity & Unit */}
+                                  <td className="py-3 px-3 whitespace-nowrap">
+                                    <div className="flex items-center space-x-1">
+                                      <input
+                                        type="number"
+                                        step="any"
+                                        value={item.quantity != null ? item.quantity : ''}
+                                        disabled={isPermanentlyReviewed || !isIncluded}
+                                        onChange={(e) => handleRowFieldChange(originalIdx, 'quantity', e.target.value)}
+                                        className="w-20 bg-[#030906] border border-white/[0.12] rounded px-2 py-1 text-xs font-mono text-white text-right focus:outline-none focus:border-[#b5f568] disabled:bg-transparent disabled:border-0"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={item.unit || ''}
+                                        disabled={isPermanentlyReviewed || !isIncluded}
+                                        onChange={(e) => handleRowFieldChange(originalIdx, 'unit', e.target.value)}
+                                        className="w-16 bg-[#030906] border border-white/[0.12] rounded px-1.5 py-1 text-[11px] font-mono text-[#b5f568] focus:outline-none focus:border-[#b5f568] disabled:bg-transparent disabled:border-0"
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* Emissions Pill */}
+                                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-1 rounded text-xs font-mono font-bold ${
+                                        isOffset
+                                          ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/50'
+                                          : 'bg-[#0f2e20] text-[#b5f568] border border-[#b5f568]/40'
+                                      }`}
+                                      title={item.emissions?.calculationFormula || ''}
+                                    >
+                                      {item.emissions?.emissionsKg != null
+                                        ? `${item.emissions.emissionsKg > 0 ? '+' : ''}${item.emissions.emissionsKg} kg`
+                                        : '0 kg'}
+                                    </span>
+                                    {isOffset && (
+                                      <span className="block text-[9px] text-emerald-400 font-mono mt-0.5">
+                                        Offset Credit
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Status / Warnings */}
+                                  <td className="py-3 px-3 text-center whitespace-nowrap">
+                                    {hasErrors ? (
+                                      <span
+                                        className="text-amber-400 cursor-help"
+                                        title={item.validationErrors.join(', ')}
+                                      >
+                                        <AlertTriangle className="w-4 h-4 inline" />
+                                      </span>
+                                    ) : (
+                                      <span className="text-emerald-400">
+                                        <CheckCircle className="w-4 h-4 inline opacity-60" />
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Preview Tab for Multi-Scope */}
+              {activeTab === 'PREVIEW' && (
+                <div className="flex flex-col items-center justify-center min-h-[460px] bg-[#020704] border-2 border-[#62dd9e]/40 p-4 relative">
+                  {isImage ? (
+                    <img src={previewUrl} alt={document.originalFileName} className="max-h-[500px] object-contain" />
+                  ) : isPdf ? (
+                    <iframe src={previewUrl} title="PDF Preview" className="w-full h-[520px] bg-white border-0" />
+                  ) : (
+                    <div className="text-center p-8 text-[#9aada2] text-xs font-mono">
+                      <FileText className="w-12 h-12 text-[#62dd9e]/40 mx-auto mb-2" />
+                      <p>Multi-scope file preview ({document.mimeType}).</p>
+                      <p className="mt-1 text-[#71857c]">Inspect all structured row ledger data in the Consolidated Ledger tab.</p>
+                      <a
+                        href={previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center space-x-1 text-[#b5f568] hover:underline"
+                      >
+                        <span>Download/Open Original File</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Raw Extracted Data Tab for Multi-Scope */}
+              {activeTab === 'TEXT' && (
+                <div className="bg-[#030c08] border border-[#62dd9e]/30 rounded-xl p-4 font-mono text-xs text-[#a8bcaf] whitespace-pre-wrap max-h-[500px] overflow-y-auto">
+                  {document.extractedText || JSON.stringify(document.extractedFields, null, 2)}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+        /* Content Body: Split View */
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#05110c]">
           {/* Left Column: Original Document Preview (6 cols) */}
           <div className="lg:col-span-6 border-b lg:border-b-0 lg:border-r border-[#62dd9e]/20 p-4 sm:p-5 bg-[#030c08] flex flex-col overflow-y-auto min-h-0 space-y-3.5">
@@ -811,6 +1353,7 @@ export function DocumentReviewModal({
             </div>
           </div>
         </div>
+        )}
 
         {/* Modal Actions Footer: Full-Width Pinned Footer Bar */}
         <div className="p-4 sm:px-6 border-t-2 border-[#62dd9e]/30 bg-[#091f16] flex flex-wrap items-center justify-between gap-3 shrink-0 z-20">
@@ -862,8 +1405,8 @@ export function DocumentReviewModal({
               <button
                 type="button"
                 onClick={handleApprove}
-                disabled={saving}
-                className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#b5f568] to-[#62dd9e] hover:from-[#c5fa82] hover:to-[#73e8ac] text-[#05110c] hover:shadow-[0_0_28px_rgba(181,245,104,0.5)] hover:scale-[1.02] active:scale-[0.98] text-xs font-mono font-extrabold transition shadow-md cursor-pointer"
+                disabled={saving || (isMultiScope && multiScopeMetrics.includedCount === 0)}
+                className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#b5f568] to-[#62dd9e] hover:from-[#c5fa82] hover:to-[#73e8ac] text-[#05110c] hover:shadow-[0_0_28px_rgba(181,245,104,0.5)] hover:scale-[1.02] active:scale-[0.98] text-xs font-mono font-extrabold transition shadow-md cursor-pointer disabled:opacity-50"
               >
                 {saving ? (
                   <>
@@ -873,7 +1416,11 @@ export function DocumentReviewModal({
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4 text-[#05110c]" />
-                    <span>Verify & Record Activity</span>
+                    <span>
+                      {isMultiScope
+                        ? `Verify & Record All ${multiScopeMetrics.includedCount} Activities`
+                        : 'Verify & Record Activity'}
+                    </span>
                   </>
                 )}
               </button>

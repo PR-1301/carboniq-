@@ -4,6 +4,7 @@ import { classifyDocument } from './classificationService.js';
 import {
   extractRawContent,
   extractStructuredFields,
+  extractTabularLineItems,
   validateExtractedFields,
 } from './extractionService.js';
 import { compressImageIfExceedsLimit } from './imageCompressionService.js';
@@ -131,6 +132,105 @@ export async function processSingleDocument({
     rawExtraction.rawRecords
   );
 
+  let lineItems = [];
+  let multiScopeSummary = null;
+  let isMultiScope = false;
+  let suggestedEmissions = null;
+
+  // Tabular spreadsheet processing (row-by-row multi-scope classification & emissions calculation)
+  if (rawExtraction.rawRecords && Array.isArray(rawExtraction.rawRecords) && rawExtraction.rawRecords.length > 0) {
+    const tabularResult = extractTabularLineItems(rawExtraction.rawRecords, originalFileName);
+    lineItems = tabularResult.lineItems;
+    isMultiScope = tabularResult.isMultiScope;
+
+    for (const li of lineItems) {
+      if (li.quantity > 0) {
+        try {
+          const rowEmission = await calculateCarbonEmissions({
+            category: li.category,
+            scope: li.scope,
+            quantity: li.quantity,
+            unit: li.unit,
+            categoryData: li.categoryData,
+            supplierName: li.supplierName,
+            description: li.description,
+          });
+          li.emissions = {
+            emissionsKg: rowEmission.emissionsKg || 0,
+            emissionsTonnes: rowEmission.emissionsTonnes || 0,
+            factorUsed: rowEmission.factorUsed,
+            factorUnit: rowEmission.factorUnit,
+            methodology: rowEmission.methodology,
+            source: rowEmission.source,
+            calculationFormula: rowEmission.calculationFormula,
+            isNegativeOffset: Boolean(rowEmission.isNegativeOffset),
+            tier: rowEmission.tier,
+            directEmissionsKg: rowEmission.directEmissionsKg,
+            upstreamEmissionsKg: rowEmission.upstreamEmissionsKg,
+          };
+        } catch (err) {
+          console.warn(`Row ${li.rowNumber} calculation failed:`, err.message);
+          li.validationErrors.push(`Calculation error: ${err.message}`);
+        }
+      }
+    }
+
+    let s1 = 0;
+    let s2 = 0;
+    let s3 = 0;
+    let offset = 0;
+    let validRows = 0;
+
+    for (const li of lineItems) {
+      if (li.validationErrors.length === 0) {
+        validRows++;
+        const kg = li.emissions?.emissionsKg || 0;
+        if (li.emissions?.isNegativeOffset || kg < 0) {
+          offset += Math.abs(kg);
+        } else if (li.scope === 'SCOPE_1') {
+          s1 += kg;
+        } else if (li.scope === 'SCOPE_2') {
+          s2 += kg;
+        } else {
+          s3 += kg;
+        }
+      }
+    }
+    const net = (s1 + s2 + s3) - offset;
+
+    multiScopeSummary = {
+      scope1Kg: Math.round(s1 * 100) / 100,
+      scope2Kg: Math.round(s2 * 100) / 100,
+      scope3Kg: Math.round(s3 * 100) / 100,
+      offsetKg: Math.round(offset * 100) / 100,
+      netKg: Math.round(net * 100) / 100,
+      totalRows: lineItems.length,
+      validRows,
+      distinctScopes: tabularResult.distinctScopes,
+    };
+
+    if (isMultiScope) {
+      docScope = 'MULTI_SCOPE';
+      classification.documentType = 'CONSOLIDATED_LOG';
+      classification.carbonRelevance = 'RELEVANT';
+      classification.classificationReason = `Consolidated multi-scope log with ${lineItems.length} records across ${tabularResult.distinctScopes.join(', ')}.`;
+    } else if (tabularResult.distinctScopes.length === 1) {
+      docScope = tabularResult.distinctScopes[0];
+      classification.carbonRelevance = 'RELEVANT';
+      classification.classificationReason = `Tabular operational log with ${lineItems.length} records under ${tabularResult.distinctScopes[0]}.`;
+    }
+
+    suggestedEmissions = {
+      emissionsKg: multiScopeSummary.netKg,
+      emissionsTonnes: Math.round((multiScopeSummary.netKg / 1000) * 1000) / 1000,
+      calculationFormula: `Consolidated sum across ${lineItems.length} line items: S1(${multiScopeSummary.scope1Kg} kg) + S2(${multiScopeSummary.scope2Kg} kg) + S3(${multiScopeSummary.scope3Kg} kg) - Offsets(${multiScopeSummary.offsetKg} kg) = ${multiScopeSummary.netKg} kg CO2e`,
+      source: 'Consolidated National Benchmark (CEA / IPCC / EXIOBASE 3.11.2)',
+      methodology: 'Multi-Scope Tabular Activity Accounting',
+      tier: 'IPCC Tier 1 / EEIO',
+      isNegativeOffset: multiScopeSummary.netKg < 0,
+    };
+  }
+
   // Merge Groq Vision fields if present
   if (rawExtraction.groqAnalysis?.extractedFields) {
     const gf = rawExtraction.groqAnalysis.extractedFields;
@@ -177,22 +277,23 @@ export async function processSingleDocument({
   const processingStatus = isFailed ? 'FAILED' : needsReview ? 'NEEDS_REVIEW' : 'COMPLETED';
   const reviewStatus = isFailed ? 'REQUIRED' : needsReview ? 'REQUIRED' : 'PENDING';
 
-  // Step 8: Calculate Suggested Carbon Emissions (IPCC / CEA Baseline)
-  let suggestedEmissions = null;
-  try {
-    if (classification.carbonRelevance !== 'IRRELEVANT' && extractedFields) {
-      suggestedEmissions = await calculateCarbonEmissions({
-        category: extractedFields.category,
-        scope: docScope,
-        quantity: extractedFields.quantity,
-        unit: extractedFields.unit,
-        categoryData: extractedFields.categoryData,
-        supplierName: extractedFields.supplierName,
-        description: extractedFields.description,
-      });
+  // Step 8: Calculate Suggested Carbon Emissions (IPCC / CEA Baseline for single documents)
+  if (!suggestedEmissions) {
+    try {
+      if (classification.carbonRelevance !== 'IRRELEVANT' && extractedFields) {
+        suggestedEmissions = await calculateCarbonEmissions({
+          category: extractedFields.category,
+          scope: docScope,
+          quantity: extractedFields.quantity,
+          unit: extractedFields.unit,
+          categoryData: extractedFields.categoryData,
+          supplierName: extractedFields.supplierName,
+          description: extractedFields.description,
+        });
+      }
+    } catch (calcErr) {
+      console.error('Error calculating suggested emissions during processing:', calcErr);
     }
-  } catch (calcErr) {
-    console.error('Error calculating suggested emissions during processing:', calcErr);
   }
 
   // Step 9: Persist Document Record
@@ -211,6 +312,7 @@ export async function processSingleDocument({
     documentType: classification.documentType,
     carbonRelevance: classification.carbonRelevance,
     scope: docScope,
+    isMultiScope,
     classificationReason: classification.classificationReason,
     processingStatus,
     reviewStatus,
@@ -218,6 +320,8 @@ export async function processSingleDocument({
     extractedText: rawExtraction.text,
     extractedFields,
     suggestedEmissions,
+    lineItems,
+    multiScopeSummary,
     fieldConfidence: validation.fieldConfidence,
     validationErrors: errors,
   });

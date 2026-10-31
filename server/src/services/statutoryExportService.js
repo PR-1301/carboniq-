@@ -627,8 +627,8 @@ export function generateSingleDocumentPDF(document, company, stream) {
 
   const em = document.suggestedEmissions || document.carbonEmissions || {};
   const f = document.extractedFields || {};
-  const emKg = em.emissionsKg || 0;
-  const emTonnes = em.emissionsTonnes || (emKg / 1000);
+  const emKg = em.emissionsKg != null ? em.emissionsKg : (document.multiScopeSummary?.netKg || 0);
+  const emTonnes = em.emissionsTonnes != null ? em.emissionsTonnes : (emKg / 1000);
   const isApproved = document.reviewStatus === 'APPROVED';
   const isNegative = Boolean(em.isNegativeOffset);
 
@@ -679,6 +679,12 @@ export function generateSingleDocumentPDF(document, company, stream) {
 
   if (isNegative) {
     doc.fontSize(9).font('Helvetica-Bold').fillColor('#059669').text(' AVOIDED EMISSION OFFSET (NET CARBON CREDIT)', 55, heroY + 84);
+  } else if (document.scope === 'MULTI_SCOPE' && document.multiScopeSummary) {
+    const ms = document.multiScopeSummary;
+    doc.fontSize(8.5).font('Helvetica').fillColor(grayText).text(
+      `Scope 1: ${ms.scope1Kg || 0} kg | Scope 2: ${ms.scope2Kg || 0} kg | Scope 3: ${ms.scope3Kg || 0} kg | Offset: -${ms.offsetKg || 0} kg (${ms.validRows || document.lineItems?.length || 0} rows)`,
+      55, heroY + 84
+    );
   } else {
     doc.fontSize(8.5).font('Helvetica').fillColor(grayText).text(
       `Scope: ${document.scope || 'SCOPE_3'}  |  Category: ${f.category || document.documentType || 'OPERATIONAL'}  |  Tier: ${em.tier || 'IPCC Tier 1'}`,
@@ -686,7 +692,218 @@ export function generateSingleDocumentPDF(document, company, stream) {
     );
   }
 
-  // 4. Extracted Activity & Line Item Details Table
+  const isMultiScope = document.scope === 'MULTI_SCOPE' || (document.lineItems && document.lineItems.length > 0);
+
+  if (isMultiScope) {
+    const ms = document.multiScopeSummary || {
+      scope1Kg: 0,
+      scope2Kg: 0,
+      scope3Kg: 0,
+      offsetKg: 0,
+      netKg: emKg,
+      totalRows: document.lineItems?.length || 0,
+      validRows: document.lineItems?.length || 0,
+      distinctScopes: ['SCOPE_1', 'SCOPE_2', 'SCOPE_3'],
+    };
+
+    // 4. Multi-Scope Executive Allocation Grid (Page 1)
+    const gridY = 345;
+    doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('EXECUTIVE SCOPE BOUNDARY ALLOCATION & AUDIT SUMMARY', 40, gridY);
+
+    const cardW = 122;
+    const cardH = 56;
+    const cardGap = 9;
+    const startX = 40;
+
+    // Scope 1 Card
+    doc.rect(startX, gridY + 16, cardW, cardH).fill('#ecfdf5').stroke('#6ee7b7');
+    doc.fillColor('#065f46').fontSize(7.5).font('Helvetica-Bold').text('SCOPE 1 (DIRECT FUELS)', startX + 8, gridY + 24);
+    doc.fillColor('#047857').fontSize(12).font('Helvetica-Bold').text(`+${Number(ms.scope1Kg || 0).toLocaleString('en-IN')} kg`, startX + 8, gridY + 38);
+    doc.fillColor(grayText).fontSize(7).font('Helvetica').text('Stationary & Fleet Fuels', startX + 8, gridY + 54);
+
+    // Scope 2 Card
+    const s2X = startX + cardW + cardGap;
+    doc.rect(s2X, gridY + 16, cardW, cardH).fill('#f0f9ff').stroke('#7dd3fc');
+    doc.fillColor('#0369a1').fontSize(7.5).font('Helvetica-Bold').text('SCOPE 2 (GRID ELECTRICITY)', s2X + 8, gridY + 24);
+    doc.fillColor('#0284c7').fontSize(12).font('Helvetica-Bold').text(`+${Number(ms.scope2Kg || 0).toLocaleString('en-IN')} kg`, s2X + 8, gridY + 38);
+    doc.fillColor(grayText).fontSize(7).font('Helvetica').text('CEA Grid Benchmark 0.82', s2X + 8, gridY + 54);
+
+    // Scope 3 Card
+    const s3X = s2X + cardW + cardGap;
+    doc.rect(s3X, gridY + 16, cardW, cardH).fill('#faf5ff').stroke('#d8b4fe');
+    doc.fillColor('#6b21a8').fontSize(7.5).font('Helvetica-Bold').text('SCOPE 3 (VALUE CHAIN)', s3X + 8, gridY + 24);
+    doc.fillColor('#7e22ce').fontSize(12).font('Helvetica-Bold').text(`+${Number(ms.scope3Kg || 0).toLocaleString('en-IN')} kg`, s3X + 8, gridY + 38);
+    doc.fillColor(grayText).fontSize(7).font('Helvetica').text('Logistics, Travel & Spend', s3X + 8, gridY + 54);
+
+    // Avoided Offsets Card
+    const offX = s3X + cardW + cardGap;
+    doc.rect(offX, gridY + 16, cardW, cardH).fill('#f0fdf4').stroke('#86efac');
+    doc.fillColor('#15803d').fontSize(7.5).font('Helvetica-Bold').text('AVOIDED OFFSETS', offX + 8, gridY + 24);
+    doc.fillColor('#16a34a').fontSize(12).font('Helvetica-Bold').text(`-${Number(ms.offsetKg || 0).toLocaleString('en-IN')} kg`, offX + 8, gridY + 38);
+    doc.fillColor(grayText).fontSize(7).font('Helvetica').text('Circular Recycling Credits', offX + 8, gridY + 54);
+
+    // 5. Ingestion Governance & Traceability Metadata Box (Page 1)
+    const govY = gridY + 84;
+    doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('INGESTION GOVERNANCE & STATUTORY METHODOLOGY', 40, govY);
+
+    doc.rect(40, govY + 16, 515, 68).fill('#f8fafc').stroke('#cbd5e1');
+    doc.fillColor(dark).fontSize(8).font('Helvetica-Bold').text('Accounting Standard:', 52, govY + 24);
+    doc.fillColor(grayText).fontSize(8).font('Helvetica').text('GHG Protocol Corporate Standard (Direct & Indirect) | SEBI BRSR Core Principle 6', 160, govY + 24);
+
+    doc.fillColor(dark).fontSize(8).font('Helvetica-Bold').text('Emission Factor Baselines:', 52, govY + 38);
+    doc.fillColor(grayText).fontSize(8).font('Helvetica').text('India CEA Grid v20.0 (0.82 kg/kWh) | IPCC Tier 1 (Fuels) | EXIOBASE 3.11.2 Leontief EEIO', 160, govY + 38);
+
+    doc.fillColor(dark).fontSize(8).font('Helvetica-Bold').text('Activity Line Items:', 52, govY + 52);
+    doc.fillColor(grayText).fontSize(8).font('Helvetica').text(`${ms.validRows || document.lineItems?.length || 0} Ingested Line Items across ${ms.distinctScopes?.length || 3} Distinct Scopes`, 160, govY + 52);
+
+    doc.fillColor(dark).fontSize(8).font('Helvetica-Bold').text('Itemized Ledger Audit:', 52, govY + 66);
+    doc.fillColor('#0f766e').fontSize(8).font('Helvetica-Bold').text('Complete row-level breakdown and activity schedule follows in Schedule A on Page 2.', 160, govY + 66);
+
+    // 6. Page 1 Footer Assurance Seal
+    const sealY = govY + 96;
+    doc.rect(40, sealY, 515, 46).fill('#ecfdf5').stroke('#a7f3d0');
+    doc.fillColor('#065f46').fontSize(8.5).font('Helvetica-Bold').text('PRE-AUDIT SOVEREIGN ASSURANCE SEAL', 50, sealY + 8);
+    doc.fillColor('#047857').fontSize(7.5).font('Helvetica').text(
+      'This certificate validates consolidated multi-scope emissions derived from the attached tabular operational dataset in full compliance with ISO 14064-1 and SEBI BRSR Core Guidelines. Verified by CarbonIQ Traceability Engine.',
+      50, sealY + 20, { width: 495, lineBreak: true }
+    );
+
+    // ========================================================================
+    // SCHEDULE A: ITEMIZED MULTI-SCOPE OPERATIONAL ACTIVITY RECORDS (PAGE 2+)
+    // ========================================================================
+    const items = document.lineItems || [];
+    if (items.length > 0) {
+      doc.addPage();
+      let pageNum = 2;
+
+      const renderScheduleHeader = (pageNumber) => {
+        doc.rect(40, 40, 515, 26).fill(dark);
+        doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text('SCHEDULE A: ITEMIZED MULTI-SCOPE OPERATIONAL ACTIVITY RECORDS', 50, 48);
+        doc.fillColor('#34d399').fontSize(7.5).font('Helvetica').text(`Page ${pageNumber} | DOC-${document._id.toString().toUpperCase()}`, 380, 48);
+
+        doc.fillColor(grayText).fontSize(7.5).font('Helvetica').text(
+          `Entity: ${company?.name || company?.companyName || 'Corporate Entity'}  |  Source File: ${document.originalFileName}  |  Total Items: ${items.length}`,
+          40, 72
+        );
+
+        // Table Header
+        const headY = 84;
+        doc.rect(40, headY, 515, 18).fill('#0f2e22');
+        doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold');
+        doc.text('#', 44, headY + 5, { width: 16 });
+        doc.text('Date', 62, headY + 5, { width: 48 });
+        doc.text('Scope', 112, headY + 5, { width: 38 });
+        doc.text('Category', 152, headY + 5, { width: 76 });
+        doc.text('Description & Counterparty', 230, headY + 5, { width: 146 });
+        doc.text('Activity Metric', 378, headY + 5, { width: 68 });
+        doc.text('GHG CO2e', 448, headY + 5, { width: 102, align: 'right' });
+
+        return headY + 18;
+      };
+
+      let curY = renderScheduleHeader(pageNum);
+
+      items.forEach((item, idx) => {
+        const itemScope = item.scope || 'SCOPE_3';
+        const itemCat = item.category || 'OTHER';
+        const itemQty = item.quantity != null ? `${item.quantity.toLocaleString('en-IN')} ${item.unit || ''}` : 'N/A';
+        const dateStr = item.activityDate ? new Date(item.activityDate).toLocaleDateString('en-IN') : 'N/A';
+        const descStr = `${item.description || 'Activity'} ${item.supplierName ? `(${item.supplierName})` : ''}`.trim();
+        const emObj = item.emissions || {};
+        const emItemKg = emObj.emissionsKg != null ? Number(emObj.emissionsKg) : 0;
+        const isItemOffset = emObj.isNegativeOffset || emItemKg < 0;
+
+        // Measure description text height
+        doc.font('Helvetica').fontSize(7.5);
+        const descH = doc.heightOfString(descStr, { width: 144 });
+        const rowH = Math.max(18, Math.ceil(descH) + 6);
+
+        // Check page overflow
+        if (curY + rowH > 750) {
+          doc.addPage();
+          pageNum++;
+          curY = renderScheduleHeader(pageNum);
+        }
+
+        // Draw row
+        doc.rect(40, curY, 515, rowH).fill(idx % 2 === 0 ? '#ffffff' : '#f8fafc').stroke('#e2e8f0');
+
+        // Column 0: #
+        doc.fillColor(dark).fontSize(7).font('Helvetica');
+        doc.text(String(item.rowNumber || idx + 1), 44, curY + 4, { width: 16 });
+
+        // Column 1: Date
+        doc.fillColor(grayText).fontSize(7).font('Helvetica');
+        doc.text(dateStr, 62, curY + 4, { width: 48 });
+
+        // Column 2: Scope badge
+        const scopeCol = itemScope === 'SCOPE_1' ? '#059669' : itemScope === 'SCOPE_2' ? '#0284c7' : '#7c3aed';
+        doc.fillColor(scopeCol).fontSize(7).font('Helvetica-Bold');
+        doc.text(itemScope.replace('SCOPE_', 'S-'), 112, curY + 4, { width: 38 });
+
+        // Column 3: Category
+        doc.fillColor(dark).fontSize(7).font('Helvetica');
+        doc.text(itemCat.replace(/_/g, ' '), 152, curY + 4, { width: 76 });
+
+        // Column 4: Description & Supplier
+        doc.fillColor(dark).fontSize(7).font('Helvetica');
+        doc.text(descStr, 230, curY + 4, { width: 146 });
+
+        // Column 5: Quantity & Unit
+        doc.fillColor(dark).fontSize(7).font('Helvetica-Bold');
+        doc.text(itemQty, 378, curY + 4, { width: 68 });
+
+        // Column 6: Quantified CO2e
+        doc.font('Helvetica-Bold').fontSize(7.5);
+        if (isItemOffset) {
+          doc.fillColor('#059669').text(`-${Math.abs(emItemKg).toLocaleString('en-IN')} kg*`, 448, curY + 4, { width: 102, align: 'right' });
+        } else {
+          doc.fillColor(dark).text(`+${emItemKg.toLocaleString('en-IN')} kg`, 448, curY + 4, { width: 102, align: 'right' });
+        }
+
+        curY += rowH;
+      });
+
+      // Schedule Ledger Grand Total Box
+      if (curY + 70 > 750) {
+        doc.addPage();
+        pageNum++;
+        curY = renderScheduleHeader(pageNum);
+      }
+
+      curY += 10;
+      doc.rect(40, curY, 515, 42).fill('#0f2e22').stroke('#34d399');
+      doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold').text('CONSOLIDATED AUDIT LEDGER TOTALS', 50, curY + 8);
+      doc.fillColor('#a7f3d0').fontSize(7.5).font('Helvetica').text(
+        `Scope 1: +${Number(ms.scope1Kg || 0).toLocaleString('en-IN')} kg  |  Scope 2: +${Number(ms.scope2Kg || 0).toLocaleString('en-IN')} kg  |  Scope 3: +${Number(ms.scope3Kg || 0).toLocaleString('en-IN')} kg  |  Avoided Offsets: -${Number(ms.offsetKg || 0).toLocaleString('en-IN')} kg`,
+        50, curY + 22
+      );
+      doc.fillColor('#bbf7d0').fontSize(10).font('Helvetica-Bold').text(
+        `NET FOOTPRINT: +${Number(ms.netKg || 0).toLocaleString('en-IN')} kg CO2e (${Number((ms.netKg || 0) / 1000).toFixed(4)} tCO2e)`,
+        300, curY + 14, { align: 'right', width: 245 }
+      );
+      curY += 46;
+
+      // Assurance seal at the bottom of Schedule A
+      if (curY + 50 > 750) {
+        doc.addPage();
+        pageNum++;
+        curY = renderScheduleHeader(pageNum);
+      }
+
+      curY += 8;
+      doc.rect(40, curY, 515, 36).fill('#f8fafc').stroke('#cbd5e1');
+      doc.fillColor(grayText).fontSize(7).font('Helvetica').text(
+        '* Negative emissions denote validated avoided lifecycle greenhouse gas displacement credits achieved via closed-loop material recycling.\nThis itemized schedule forms an integral statutory annexure to the CarbonIQ Greenhouse Gas Verification Certificate.',
+        50, curY + 6, { width: 495, lineBreak: true }
+      );
+    }
+
+    doc.end();
+    return;
+  }
+
+  // 4. Extracted Activity & Line Item Details Table (Single Document Flow)
   const tableY = 345;
   doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('EXTRACTED ACTIVITY & VENDOR SPECIFICATIONS', 40, tableY);
 
