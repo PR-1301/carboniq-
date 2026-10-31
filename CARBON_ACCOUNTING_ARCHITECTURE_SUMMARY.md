@@ -300,8 +300,8 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 | | High-uncertainty hotspot flagging in review modal UI | ✅ **COMPLETED** | `client/src/components/DocumentReviewModal.jsx` |
 | | Targeted LCA Refinement workflow (BOMs & EPDs) | 🔄 **IN PROGRESS** | *UI Hotspot trigger ready; BOM ingestion pending* |
 | | Supplier Primary Data Request portal & token links | ❌ **NOT COMPLETED** | *Planned: Supplier Self-Reporting Form* |
-| **9. Reporting & Goals**| SEBI BRSR Core format report generator | ❌ **NOT COMPLETED** | *Planned: BRSR PDF / Excel Export* |
-| | EU CBAM embedded emissions compliance export | ❌ **NOT COMPLETED** | *Planned: CBAM XML Exporter* |
+| **9. Reporting & Goals**| SEBI BRSR Core format report generator (PDF & Excel) | ✅ **COMPLETED** | `server/src/services/statutoryExportService.js` |
+| | EU CBAM embedded emissions compliance export (XML & CSV) | ✅ **COMPLETED** | `server/src/services/statutoryExportService.js` |
 | | Decarbonization ROI scenario simulator (Solar/EV) | ❌ **NOT COMPLETED** | *Planned: Scenario Planning Tab* |
 
 ---
@@ -336,6 +336,16 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 - **Hotspot Screening:** Automatically flags financial transactions exceeding $500\text{ kg CO}_2\text{e}$ or $>₹1,00,000$ spend as Scope 3 Pareto hotspot candidates.
 - **Interactive UI Preview:** `DocumentReviewModal.jsx` displays the Layer 2 EXIOBASE badge, matched sector title, supply chain decomposition pills, and Layer 3 refinement alert banner.
 
+#### 6. Statutory Compliance & Export Generators (100% Complete)
+- **SEBI BRSR Core Disclosures (PDF & Excel):**
+  - **PDF Export:** Official printable disclosure statement via `pdfkit` covering Essential Indicators 7 (GHG Scope 1, 2, 3 emissions & intensities) and 8 (Energy consumption in MWh and GJ) under Principle 6.
+  - **Excel Workbook (.xlsx):** Multi-tab structured workbook (`BRSR_Executive_Summary`, `EI_7_GHG_Emissions`, `EI_8_Energy_Consumption`, `Audit_Ledger`) built with `xlsx`.
+- **EU CBAM Compliance Declarations (XML & CSV):**
+  - **Transitional Registry XML:** Full Regulation (EU) 2023/956 data structure containing CN commodity codes (Steel 7208, Aluminum 7601, Cement 2523), specific direct embedded emissions ($t\text{ CO}_2\text{e}/t$), and specific indirect emissions using CEA 2024 grid factor.
+  - **Importer Communication CSV:** Tabular data sheet formatted for European industrial value chain procurement.
+- **Full Activity Audit Ledger (CSV):** Line-by-line audit trace with factor IDs, direct/upstream Leontief splits, and mathematical formulas.
+- **Interactive Export Hub UI:** `StatutoryComplianceModal.jsx` embedded into the workspace header for instant 1-click downloads.
+
 ---
 
 ### 8.3 Detailed Breakdown: Remaining Modules (Roadmap)
@@ -346,9 +356,7 @@ Below is the exhaustive, component-by-component audit of which system modules ar
   - Build a dedicated **"Refine Hotspot"** modal allowing the user to override financial spend proxies by attaching supplier Environmental Product Declarations (EPDs), Product Carbon Footprints (PCFs), or Bills of Materials (BOMs).
   - Provide a secure tokenized link for suppliers to self-report energy logs directly into the SME's accounting ledger.
 
-#### 2. Statutory Compliance & Export Generators (Not Completed)
-- **Current State:** Inventory data is visible in client dashboards and table views.
-- **Target State:**
-  - Automated PDF/Excel export compliant with **SEBI BRSR Core** (Mandatory for top 1000 listed Indian entities and their SME value chain partners).
-  - XML/CSV export structured according to **EU CBAM** (Carbon Border Adjustment Mechanism) reporting guidelines for Indian exporters of steel, aluminum, and cement.
+#### 2. Decarbonization ROI Scenario Simulator (Not Completed)
+- **Target State:** Interactive reduction planner quantifying capital expenditure, operating expenditure savings, and rupee payback periods for rooftop solar PV, commercial EV logistics conversion, and scrap waste recycling revenue.
+
 

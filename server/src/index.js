@@ -9,6 +9,7 @@ import documentRoutes from './routes/documentRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import emissionFactorRoutes from './routes/emissionFactorRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,6 +45,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/emission-factors', emissionFactorRoutes);
+app.use('/api/reports', reportRoutes);
+
 
 // Global Error Handler
 app.use((err, req, res, next) => {
