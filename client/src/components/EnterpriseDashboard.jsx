@@ -1,34 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard,
-  UploadCloud,
-  Layers,
-  Users,
   Leaf,
   Target,
   FileText,
   Settings,
-  Calendar,
-  Bell,
   Plus,
-  ArrowDown,
-  ArrowRight,
-  ChevronDown,
   ChevronRight,
   Zap,
   Flame,
   Truck,
   Package,
-  Building2,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
   Lightbulb,
   Route,
-  Sparkles,
   TrendingDown,
-  FileSpreadsheet,
-  LogOut,
+  Building2,
 } from 'lucide-react';
 
 export function EnterpriseDashboard({
@@ -39,12 +24,11 @@ export function EnterpriseDashboard({
   onNavigateTab,
   onSelectDocument,
   onOpenStatutoryReports,
-  onLogout,
 }) {
-  const [selectedPeriod, setSelectedPeriod] = useState('Sep 2026');
-  const [breakdownFilter, setBreakdownFilter] = useState('CATEGORY'); // 'CATEGORY' | 'SCOPE'
-  const [trendFilter, setTrendFilter] = useState('MONTHLY'); // 'MONTHLY' | 'QUARTERLY'
+  const [selectedPeriod] = useState('Sep 2026');
   const [hoveredSlice, setHoveredSlice] = useState(null);
+  const [isAnimated, setIsAnimated] = useState(false);
+  const [displayEmissions, setDisplayEmissions] = useState(0);
 
   // Compute live emissions from actual activities if available, else use authoritative baseline
   const hasRealActivities = activities && activities.length > 0;
@@ -70,6 +54,34 @@ export function EnterpriseDashboard({
   const scope1Pct = totalEmissionsT > 0 ? Math.round((scope1T / totalEmissionsT) * 100) : 45;
   const scope2Pct = totalEmissionsT > 0 ? Math.round((scope2T / totalEmissionsT) * 100) : 25;
   const scope3Pct = totalEmissionsT > 0 ? Math.round((scope3T / totalEmissionsT) * 100) : 30;
+
+  // Animated mount trigger & number counter
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsAnimated(true);
+    }, 60);
+
+    // Smooth count up animation for Total Emissions
+    let startTimestamp = null;
+    const duration = 1200;
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // Ease out cubic
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = +(easeProgress * totalEmissionsT).toFixed(1);
+      setDisplayEmissions(current);
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    const animId = window.requestAnimationFrame(step);
+
+    return () => {
+      clearTimeout(timer);
+      window.cancelAnimationFrame(animId);
+    };
+  }, [totalEmissionsT]);
 
   // Categories Breakdown Data
   const categoryData = [
@@ -162,9 +174,9 @@ export function EnterpriseDashboard({
   let accumulatedOffset = 0;
 
   return (
-    <div className="space-y-6 animate-page-enter">
+    <div className="space-y-6 animate-page-switch">
       {/* Welcome Hero Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <span>Welcome back,</span>
@@ -189,10 +201,10 @@ export function EnterpriseDashboard({
         </div>
       </div>
 
-      {/* Row 1: Top 4 KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-stagger-1">
+      {/* Row 1: Top 4 KPI Metric Cards with Staggered Entrance */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Emissions */}
-        <div className="telemetry-card p-5 rounded-2xl border border-[#b4ffcd]/18 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group">
+        <div className="telemetry-card p-5 rounded-2xl border border-[#b4ffcd]/18 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group animate-kpi-enter-1">
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#b5f568] to-transparent" />
           <div className="flex items-center justify-between">
             <div>
@@ -201,7 +213,7 @@ export function EnterpriseDashboard({
               </span>
               <div className="flex items-baseline space-x-1.5 mt-1">
                 <span className="text-3xl font-black font-mono text-white tracking-tight">
-                  {totalEmissionsT}
+                  {displayEmissions}
                 </span>
                 <span className="text-xs font-mono font-bold text-[#b5f568]">t CO₂e</span>
               </div>
@@ -217,7 +229,7 @@ export function EnterpriseDashboard({
         </div>
 
         {/* Card 2: Scope 1 */}
-        <div className="telemetry-card p-5 rounded-2xl border border-amber-500/25 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group">
+        <div className="telemetry-card p-5 rounded-2xl border border-amber-500/25 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group animate-kpi-enter-2">
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
           <div className="flex items-center justify-between">
             <div>
@@ -233,8 +245,8 @@ export function EnterpriseDashboard({
               <div className="mt-3 flex items-center space-x-2">
                 <div className="w-24 h-1.5 rounded-full bg-[#142318] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-700"
-                    style={{ width: `${scope1Pct}%` }}
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-1000 ease-out"
+                    style={{ width: isAnimated ? `${scope1Pct}%` : '0%' }}
                   />
                 </div>
                 <span className="text-[10px] font-mono font-bold text-amber-300">{scope1Pct}%</span>
@@ -247,7 +259,7 @@ export function EnterpriseDashboard({
         </div>
 
         {/* Card 3: Scope 2 */}
-        <div className="telemetry-card p-5 rounded-2xl border border-sky-500/25 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group">
+        <div className="telemetry-card p-5 rounded-2xl border border-sky-500/25 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group animate-kpi-enter-3">
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-sky-400 to-transparent" />
           <div className="flex items-center justify-between">
             <div>
@@ -263,8 +275,8 @@ export function EnterpriseDashboard({
               <div className="mt-3 flex items-center space-x-2">
                 <div className="w-24 h-1.5 rounded-full bg-[#142318] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-700"
-                    style={{ width: `${scope2Pct}%` }}
+                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-1000 ease-out"
+                    style={{ width: isAnimated ? `${scope2Pct}%` : '0%' }}
                   />
                 </div>
                 <span className="text-[10px] font-mono font-bold text-sky-300">{scope2Pct}%</span>
@@ -277,7 +289,7 @@ export function EnterpriseDashboard({
         </div>
 
         {/* Card 4: Scope 3 */}
-        <div className="telemetry-card p-5 rounded-2xl border border-purple-500/25 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group">
+        <div className="telemetry-card p-5 rounded-2xl border border-purple-500/25 bg-[#0b1b14]/90 backdrop-blur-xl relative overflow-hidden group animate-kpi-enter-4">
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-400 to-transparent" />
           <div className="flex items-center justify-between">
             <div>
@@ -293,8 +305,8 @@ export function EnterpriseDashboard({
               <div className="mt-3 flex items-center space-x-2">
                 <div className="w-24 h-1.5 rounded-full bg-[#142318] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-purple-400 to-violet-500 transition-all duration-700"
-                    style={{ width: `${scope3Pct}%` }}
+                    className="h-full rounded-full bg-gradient-to-r from-purple-400 to-violet-500 transition-all duration-1000 ease-out"
+                    style={{ width: isAnimated ? `${scope3Pct}%` : '0%' }}
                   />
                 </div>
                 <span className="text-[10px] font-mono font-bold text-purple-300">{scope3Pct}%</span>
@@ -308,9 +320,9 @@ export function EnterpriseDashboard({
       </div>
 
       {/* Row 2: Middle Analytics Row (Breakdown Donut, Emissions Trend Area, Top Sources) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-stagger-2">
-        {/* Col 1: Emissions Breakdown (5 cols) */}
-        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Col 1: Emissions Breakdown (4 cols) */}
+        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between animate-stagger-2">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h2 className="text-sm font-bold text-white font-mono tracking-tight">Emissions Breakdown</h2>
@@ -319,14 +331,15 @@ export function EnterpriseDashboard({
               </div>
             </div>
 
-            {/* Interactive SVG Donut Chart */}
+            {/* Interactive SVG Donut Chart with Sweep Animation */}
             <div className="flex items-center justify-center py-6 relative">
-              <svg className="w-44 h-44 -rotate-90 transform" viewBox="0 0 160 160">
+              <svg className="w-44 h-44 -rotate-90 transform animate-donut-enter" viewBox="0 0 160 160">
                 <circle cx="80" cy="80" r={donutRadius} fill="none" stroke="#040a08" strokeWidth="22" />
                 {categoryData.map((cat, idx) => {
-                  const dashLength = (cat.pct / 100) * donutCircumference;
+                  const targetDash = (cat.pct / 100) * donutCircumference;
+                  const dashLength = isAnimated ? targetDash : 0;
                   const currentOffset = accumulatedOffset;
-                  accumulatedOffset += dashLength;
+                  accumulatedOffset += targetDash;
                   return (
                     <circle
                       key={cat.name}
@@ -338,7 +351,11 @@ export function EnterpriseDashboard({
                       strokeWidth={hoveredSlice === idx ? '26' : '22'}
                       strokeDasharray={`${dashLength} ${donutCircumference}`}
                       strokeDashoffset={-currentOffset}
-                      className="transition-all duration-300 cursor-pointer"
+                      style={{
+                        transition: 'stroke-dasharray 1.2s cubic-bezier(0.16, 1, 0.3, 1), stroke-width 0.25s ease',
+                        transitionDelay: `${idx * 100}ms`,
+                      }}
+                      className="cursor-pointer"
                       onMouseEnter={() => setHoveredSlice(idx)}
                       onMouseLeave={() => setHoveredSlice(null)}
                     />
@@ -349,7 +366,7 @@ export function EnterpriseDashboard({
               {/* Center Donut Cutout Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                 <span className="text-xl font-black font-mono text-white tracking-tight">
-                  {hoveredSlice !== null ? categoryData[hoveredSlice].tonnes : totalEmissionsT}
+                  {hoveredSlice !== null ? categoryData[hoveredSlice].tonnes : displayEmissions}
                 </span>
                 <span className="text-[10px] font-mono text-[#b5f568] font-bold">
                   {hoveredSlice !== null ? categoryData[hoveredSlice].name : 't CO₂e Total'}
@@ -382,8 +399,8 @@ export function EnterpriseDashboard({
           </div>
         </div>
 
-        {/* Col 2: Emissions Trend Area Chart (4 cols) */}
-        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between">
+        {/* Col 2: Emissions Trend Area Chart with Drawing Line Animation (4 cols) */}
+        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between animate-stagger-3">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h2 className="text-sm font-bold text-white font-mono tracking-tight">Emissions Trend</h2>
@@ -395,12 +412,12 @@ export function EnterpriseDashboard({
             <div className="pt-3">
               <span className="text-[10px] font-mono text-[#9aada2] block">Trajectory (t CO₂e)</span>
 
-              {/* SVG Area Chart */}
+              {/* Animated SVG Area Chart */}
               <div className="py-4">
                 <svg className="w-full h-44 overflow-visible" viewBox="0 0 360 160">
                   <defs>
                     <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#62dd9e" stopOpacity="0.35" />
+                      <stop offset="0%" stopColor="#62dd9e" stopOpacity="0.4" />
                       <stop offset="100%" stopColor="#62dd9e" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
@@ -412,12 +429,14 @@ export function EnterpriseDashboard({
 
                   {/* Area fill */}
                   <path
+                    className={isAnimated ? 'animate-area-fade' : 'opacity-0'}
                     d="M 30,120 C 60,110 70,105 90,105 C 110,105 130,114 150,114 C 170,114 190,128 210,128 C 230,128 250,100 270,100 C 290,100 310,92 330,92 L 330,150 L 30,150 Z"
                     fill="url(#trendGradient)"
                   />
 
-                  {/* Stroke line */}
+                  {/* Animated Stroke line */}
                   <path
+                    className={isAnimated ? 'animate-line-draw' : 'opacity-0'}
                     d="M 30,120 C 60,110 70,105 90,105 C 110,105 130,114 150,114 C 170,114 190,128 210,128 C 230,128 250,100 270,100 C 290,100 310,92 330,92"
                     fill="none"
                     stroke="#62dd9e"
@@ -425,9 +444,13 @@ export function EnterpriseDashboard({
                     strokeLinecap="round"
                   />
 
-                  {/* Points */}
+                  {/* Animated Trajectory Nodes */}
                   {trendMonths.map((p, i) => (
-                    <g key={p.month}>
+                    <g
+                      key={p.month}
+                      className={isAnimated ? 'animate-node-pop' : 'opacity-0'}
+                      style={{ animationDelay: `${400 + i * 130}ms` }}
+                    >
                       <circle
                         cx={p.x}
                         cy={p.y}
@@ -454,15 +477,15 @@ export function EnterpriseDashboard({
               <div className="flex items-center justify-between text-[11px] font-mono pt-3 border-t border-white/[0.06]">
                 <span className="text-[#9aada2]">Current Month Trajectory:</span>
                 <span className="text-[#b5f568] font-bold px-2 py-0.5 rounded bg-[#122e1f] border border-[#b5f568]/40">
-                  {totalEmissionsT} t CO₂e
+                  {displayEmissions} t CO₂e
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Col 3: Top Emission Sources (4 cols) */}
-        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between">
+        {/* Col 3: Top Emission Sources Ranked with Animated Expansion Bars (4 cols) */}
+        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between animate-stagger-4">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h2 className="text-sm font-bold text-white font-mono tracking-tight">Top Emission Sources</h2>
@@ -477,7 +500,7 @@ export function EnterpriseDashboard({
             </div>
 
             <div className="space-y-3.5 pt-4">
-              {topSources.map((source) => {
+              {topSources.map((source, idx) => {
                 const IconComponent = source.icon;
                 return (
                   <div key={source.name} className="space-y-1.5">
@@ -497,8 +520,12 @@ export function EnterpriseDashboard({
                     {/* Progress bar */}
                     <div className="w-full h-1.5 rounded-full bg-[#040a08] overflow-hidden">
                       <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${source.pct}%`, backgroundColor: source.color }}
+                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: isAnimated ? `${source.pct}%` : '0%',
+                          backgroundColor: source.color,
+                          transitionDelay: `${300 + idx * 100}ms`,
+                        }}
                       />
                     </div>
                   </div>
@@ -510,9 +537,9 @@ export function EnterpriseDashboard({
       </div>
 
       {/* Row 3: Bottom Actionable Row (Recent Documents, Supplier Intelligence, Recommended Actions) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-stagger-3">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Col 1: Recent Documents (4 cols) */}
-        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between">
+        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between animate-stagger-4">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h2 className="text-sm font-bold text-white font-mono tracking-tight">Recent Ingested Records</h2>
@@ -612,7 +639,7 @@ export function EnterpriseDashboard({
         </div>
 
         {/* Col 2: Supplier Intelligence (4 cols) */}
-        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between">
+        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between animate-stagger-5">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h2 className="text-sm font-bold text-white font-mono tracking-tight">Supplier Intelligence</h2>
@@ -648,7 +675,7 @@ export function EnterpriseDashboard({
         </div>
 
         {/* Col 3: Recommended Actions (4 cols) */}
-        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between">
+        <div className="lg:col-span-4 telemetry-card p-5 sm:p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 backdrop-blur-xl flex flex-col justify-between animate-stagger-6">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h2 className="text-sm font-bold text-white font-mono tracking-tight">Recommended Actions</h2>

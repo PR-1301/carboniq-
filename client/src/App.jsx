@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar.jsx';
 import { LandingPage } from './components/LandingPage.jsx';
 import { EnterpriseDashboard } from './components/EnterpriseDashboard.jsx';
+import { CompanySettings } from './components/CompanySettings.jsx';
 import { UploadZone } from './components/UploadZone.jsx';
 import { DocumentList } from './components/DocumentList.jsx';
 import { DocumentReviewModal } from './components/DocumentReviewModal.jsx';
@@ -497,7 +498,7 @@ export function App() {
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Top Header Bar */}
         <header className="h-20 border-b border-[#b4ffcd]/12 bg-[#06110d]/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30">
-          {/* Left: Mobile hamburger & Company selector */}
+          {/* Left: Mobile hamburger & Interactive Company Pill (Opens Settings) */}
           <div className="flex items-center space-x-3">
             <button
               type="button"
@@ -508,50 +509,26 @@ export function App() {
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Company Pill */}
-            <div className="flex items-center space-x-2 px-3 sm:px-3.5 py-1.5 rounded-xl bg-[#0b1b14] border border-[#b4ffcd]/18 shadow-sm">
-              <Building2 className="w-4 h-4 text-[#62dd9e]" />
-              <span className="font-bold text-white text-xs truncate max-w-[160px] sm:max-w-xs font-mono">
+            {/* Clickable Company Pill -> Navigates to Settings */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('SETTINGS')}
+              className="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl bg-[#0b1b14] border border-[#b4ffcd]/18 hover:border-[#b5f568]/60 hover:bg-[#122e1f]/60 shadow-sm transition-all cursor-pointer group"
+              title="Click to view & edit company parameters in Settings"
+            >
+              <Building2 className="w-4 h-4 text-[#62dd9e] group-hover:text-[#b5f568] transition-colors" />
+              <span className="font-bold text-white text-xs truncate max-w-[160px] sm:max-w-xs font-mono group-hover:text-[#b5f568] transition-colors">
                 {company.companyName}
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#121e1a] text-[#b5f568] border border-[#b5f568]/30 font-semibold hidden sm:inline-block">
                 {company.businessSize}
               </span>
-            </div>
+              <Settings className="w-3.5 h-3.5 text-[#9aada2] group-hover:text-[#b5f568] opacity-60 group-hover:opacity-100 transition-all hidden sm:inline-block" />
+            </button>
           </div>
 
-          {/* Right: Period selector, Notification, Profile Avatar, and Direct Action Button */}
+          {/* Right: Primary Action Button */}
           <div className="flex items-center space-x-3 text-xs font-mono">
-            {/* Period selector */}
-            <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0b1b14] border border-[#b4ffcd]/15 text-[#d8e6de]">
-              <Calendar className="w-3.5 h-3.5 text-[#62dd9e]" />
-              <span className="font-semibold text-white">Sep 2026</span>
-              <ChevronDown className="w-3 h-3 text-[#9aada2]" />
-            </div>
-
-            {/* Notification bell */}
-            <button
-              type="button"
-              className="p-2 rounded-xl bg-[#0b1b14] border border-[#b4ffcd]/15 text-slate-300 hover:text-white relative cursor-pointer"
-              title="Statutory ESG Notifications"
-            >
-              <Bell className="w-4 h-4 text-[#62dd9e]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b5f568] shadow-[0_0_8px_#b5f568]" />
-            </button>
-
-            {/* User Avatar Pill */}
-            <div className="flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#0b1b14] border border-[#b4ffcd]/15">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#62dd9e] to-[#b5f568] text-[#07130f] font-black flex items-center justify-center text-[10px] shadow-sm">
-                {company.companyName.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="hidden md:block text-left">
-                <div className="text-white text-[11px] font-bold leading-none truncate max-w-[120px]">
-                  {company.companyName}
-                </div>
-                <div className="text-[10px] text-[#9aada2] leading-tight">Business Owner</div>
-              </div>
-            </div>
-
             {/* Upload Document Primary Button */}
             <button
               type="button"
@@ -559,7 +536,7 @@ export function App() {
               className="flex items-center space-x-1.5 px-4 sm:px-5 py-2 rounded-full text-xs font-mono font-bold bg-gradient-to-r from-[#b5f568] to-[#9ad84f] text-[#07130f] hover:shadow-[0_0_20px_rgba(181,245,104,0.45)] hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer shadow-md"
             >
               <Plus className="w-3.5 h-3.5 text-[#07130f]" />
-              <span className="hidden sm:inline">Upload Document</span>
+              <span>Upload Document</span>
             </button>
           </div>
         </header>
@@ -587,7 +564,8 @@ export function App() {
 
         {/* Main Workspace Dynamic View Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
-          {/* VIEW: Main Enterprise Dashboard */}
+          <div key={activeTab} className="animate-page-switch">
+{/* VIEW: Main Enterprise Dashboard */}
           {activeTab === 'DASHBOARD' && (
             <EnterpriseDashboard
               company={company}
@@ -956,6 +934,7 @@ export function App() {
               </div>
             </div>
           )}
+          </div>
         </main>
 
         {/* Global Workspace Footer */}

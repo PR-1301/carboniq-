@@ -93,6 +93,14 @@ export async function getCompanyProfile() {
   });
 }
 
+export async function updateCompanyProfile(data) {
+  return safeFetchJson(`${API_BASE}/auth/me`, {
+    method: 'PUT',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(data),
+  });
+}
+
 export async function completeCompanyOnboarding() {
   return safeFetchJson(`${API_BASE}/auth/complete-onboarding`, {
     method: 'PATCH',

@@ -282,3 +282,42 @@ export async function completeOnboarding(req, res) {
     res.status(500).json({ success: false, error: error.message });
   }
 }
+
+/**
+ * Update company profile & accounting boundaries
+ */
+export async function updateProfile(req, res) {
+  try {
+    const { companyName, industryType, businessSize, gstin, currency } = req.body;
+    const company = await Company.findById(req.company._id);
+    if (!company) {
+      return res.status(404).json({ success: false, error: 'Company account not found.' });
+    }
+
+    if (companyName && companyName.trim()) {
+      company.companyName = companyName.trim();
+    }
+    if (industryType) {
+      company.industryType = industryType;
+    }
+    if (businessSize) {
+      company.businessSize = businessSize;
+    }
+    if (gstin !== undefined) {
+      company.gstin = gstin ? gstin.trim().toUpperCase() : '';
+    }
+    if (currency) {
+      company.currency = currency;
+    }
+
+    await company.save();
+
+    res.json({
+      success: true,
+      message: 'Company profile and accounting boundaries updated successfully.',
+      company: sanitizeCompany(company),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
