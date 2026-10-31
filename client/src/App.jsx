@@ -877,75 +877,12 @@ export function App() {
 
           {/* VIEW: Settings View */}
           {activeTab === 'SETTINGS' && (
-            <div className="space-y-6 animate-page-enter">
-              <div>
-                <h2 className="text-xl font-bold text-white font-mono tracking-tight">
-                  Company Profile & Accounting Boundaries
-                </h2>
-                <p className="text-xs text-[#9aada2] font-mono mt-0.5">
-                  Verified statutory parameters for statutory GHG Protocol and CEA accounting.
-                </p>
-              </div>
-
-              <div className="telemetry-card p-6 rounded-2xl border border-[#b4ffcd]/15 bg-[#0b1b14]/90 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                  <div>
-                    <label className="text-[#9aada2] text-[10px] uppercase block mb-1">Company Legal Name</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={company.companyName}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.08] text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[#9aada2] text-[10px] uppercase block mb-1">Business Scale</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={company.businessSize}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.08] text-[#b5f568] font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[#9aada2] text-[10px] uppercase block mb-1">Primary Industry Sector</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={company.industryType}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.08] text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[#9aada2] text-[10px] uppercase block mb-1">GSTIN Identifier</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={company.gstin || 'Not Provided'}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.08] text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[#9aada2] text-[10px] uppercase block mb-1">Reporting Currency</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value="Indian Rupee (₹ INR)"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.08] text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[#9aada2] text-[10px] uppercase block mb-1">Factor Database Baseline</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value="CEA v20.0 & MoEFCC Aligned"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.08] text-[#62dd9e]"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CompanySettings
+              company={company}
+              onUpdateCompany={(updated) => {
+                setCompany(updated);
+              }}
+            />
           )}
           </div>
         </main>
