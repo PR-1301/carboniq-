@@ -1,4 +1,5 @@
 import { Company } from '../models/Company.js';
+import { PendingRegistration } from '../models/PendingRegistration.js';
 import { generateToken } from '../utils/token.js';
 
 function generate6DigitOtp() {
@@ -24,6 +25,7 @@ function sanitizeCompany(company) {
 
 /**
  * Register a new Indian SME
+ * NOTE: Account is ONLY saved in the Company collection if OTP verification succeeds.
  */
 export async function register(req, res) {
   try {
@@ -51,49 +53,55 @@ export async function register(req, res) {
       });
     }
 
-    const existingEmail = await Company.findOne({ businessEmail: businessEmail.toLowerCase().trim() });
-    if (existingEmail) {
+    const cleanEmail = businessEmail.toLowerCase().trim();
+
+    // Check if an already-verified enterprise account exists
+    const existingCompany = await Company.findOne({ businessEmail: cleanEmail, isPhoneVerified: true });
+    if (existingCompany) {
       return res.status(400).json({
         success: false,
-        error: 'A company account with this business email is already registered.',
+        error: 'A verified enterprise account with this corporate email is already registered. Please sign in.',
       });
     }
+
+    // Clean up any legacy unverified remnants
+    await Company.deleteMany({ businessEmail: cleanEmail, isPhoneVerified: false });
 
     // Generate 6-digit OTP with 10-minute validity
     const otp = generate6DigitOtp();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const company = new Company({
-      companyName: companyName.trim(),
-      businessEmail: businessEmail.toLowerCase().trim(),
-      phoneNumber: phoneNumber.trim(),
-      password,
-      industryType,
-      businessSize,
-      gstin: gstin ? gstin.trim().toUpperCase() : '',
-      isPhoneVerified: false,
-      otpCode: otp,
-      otpExpiresAt,
-      hasCompletedOnboarding: false,
-      currency: 'INR',
-    });
+    // Save solely to PendingRegistration (NOT yet saved to Company collection)
+    await PendingRegistration.findOneAndUpdate(
+      { businessEmail: cleanEmail },
+      {
+        companyName: companyName.trim(),
+        businessEmail: cleanEmail,
+        phoneNumber: phoneNumber.trim(),
+        password,
+        industryType,
+        businessSize,
+        gstin: gstin ? gstin.trim().toUpperCase() : '',
+        otpCode: otp,
+        otpExpiresAt,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
-    await company.save();
-
-    // Log OTP explicitly to server terminal console for developer/demo inspection
+    // Log OTP to server console
     console.log('\n=============================================================');
-    console.log(`[INDIAN SME OTP VERIFICATION SERVICE]`);
-    console.log(`Target SME   : ${company.companyName}`);
-    console.log(`Phone Number : ${company.phoneNumber}`);
-    console.log(`Email        : ${company.businessEmail}`);
+    console.log('[INDIAN SME OTP VERIFICATION SERVICE]');
+    console.log(`Target SME   : ${companyName.trim()}`);
+    console.log(`Phone Number : ${phoneNumber.trim()}`);
+    console.log(`Email        : ${cleanEmail}`);
     console.log(`>> VERIFICATION OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
     console.log('=============================================================\n');
 
     res.status(201).json({
       success: true,
-      message: `Registration initiated. An OTP has been dispatched to your contact phone number (${company.phoneNumber}). Please enter the OTP to activate your account.`,
-      businessEmail: company.businessEmail,
-      phoneNumber: company.phoneNumber,
+      message: `Registration initiated. An OTP has been dispatched to ${phoneNumber.trim()}. Account will be registered once OTP is confirmed.`,
+      businessEmail: cleanEmail,
+      phoneNumber: phoneNumber.trim(),
       otpCode: otp,
     });
   } catch (error) {
@@ -104,6 +112,7 @@ export async function register(req, res) {
 
 /**
  * Verify OTP to complete SME registration
+ * Only creates and persists the Company document upon correct OTP input!
  */
 export async function verifyOtp(req, res) {
   try {
@@ -116,12 +125,63 @@ export async function verifyOtp(req, res) {
       });
     }
 
-    const company = await Company.findOne({ businessEmail: businessEmail.toLowerCase().trim() });
-    if (!company) {
-      return res.status(404).json({ success: false, error: 'Company account not found.' });
+    const cleanEmail = businessEmail.toLowerCase().trim();
+    const cleanOtp = otp.trim();
+
+    // Check PendingRegistration first (new registrations)
+    const pending = await PendingRegistration.findOne({ businessEmail: cleanEmail });
+    if (pending) {
+      if (pending.otpCode !== cleanOtp) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid OTP code. Please re-check the OTP.',
+        });
+      }
+
+      if (pending.otpExpiresAt && pending.otpExpiresAt < new Date()) {
+        return res.status(400).json({
+          success: false,
+          error: 'The OTP code has expired. Please request a new OTP code.',
+        });
+      }
+
+      // OTP is valid! Now and ONLY now persist the Company record into MongoDB
+      const company = new Company({
+        companyName: pending.companyName,
+        businessEmail: pending.businessEmail,
+        phoneNumber: pending.phoneNumber,
+        password: pending.password,
+        industryType: pending.industryType,
+        businessSize: pending.businessSize,
+        gstin: pending.gstin,
+        isPhoneVerified: true,
+        hasCompletedOnboarding: false,
+        currency: 'INR',
+      });
+
+      await company.save();
+      await PendingRegistration.deleteOne({ _id: pending._id });
+
+      const token = generateToken(company._id);
+
+      return res.json({
+        success: true,
+        message: 'Phone number verified successfully. Account officially registered in CarbonIQ!',
+        token,
+        company: sanitizeCompany(company),
+      });
     }
 
-    if (!company.otpCode || company.otpCode !== otp.trim()) {
+    // Check existing Company (for existing accounts in 2FA mode)
+    const company = await Company.findOne({ businessEmail: cleanEmail });
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        error: 'No registration request found for this email. Please register first.',
+      });
+    }
+
+    if (!company.otpCode || company.otpCode !== cleanOtp) {
       return res.status(400).json({ success: false, error: 'Invalid OTP code. Please re-check the OTP.' });
     }
 
@@ -132,7 +192,6 @@ export async function verifyOtp(req, res) {
       });
     }
 
-    // Activate phone verification
     company.isPhoneVerified = true;
     company.otpCode = null;
     company.otpExpiresAt = null;
@@ -140,7 +199,7 @@ export async function verifyOtp(req, res) {
 
     const token = generateToken(company._id);
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Phone number verified successfully. Welcome to CarbonIQ!',
       token,
@@ -161,24 +220,50 @@ export async function resendOtp(req, res) {
       return res.status(400).json({ success: false, error: 'Business email is required.' });
     }
 
-    const company = await Company.findOne({ businessEmail: businessEmail.toLowerCase().trim() });
+    const cleanEmail = businessEmail.toLowerCase().trim();
+    const otp = generate6DigitOtp();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    // If in PendingRegistration
+    const pending = await PendingRegistration.findOne({ businessEmail: cleanEmail });
+    if (pending) {
+      pending.otpCode = otp;
+      pending.otpExpiresAt = otpExpiresAt;
+      await pending.save();
+
+      console.log('\n=============================================================');
+      console.log('[INDIAN SME RESEND OTP SERVICE]');
+      console.log(`Target SME   : ${pending.companyName}`);
+      console.log(`Phone Number : ${pending.phoneNumber}`);
+      console.log(`>> RESENT OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
+      console.log('=============================================================\n');
+
+      return res.json({
+        success: true,
+        message: `A new OTP has been dispatched to ${pending.phoneNumber}.`,
+        businessEmail: cleanEmail,
+        phoneNumber: pending.phoneNumber,
+        otpCode: otp,
+      });
+    }
+
+    const company = await Company.findOne({ businessEmail: cleanEmail });
     if (!company) {
       return res.status(404).json({ success: false, error: 'Company account not found.' });
     }
 
-    const otp = generate6DigitOtp();
     company.otpCode = otp;
-    company.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    company.otpExpiresAt = otpExpiresAt;
     await company.save();
 
     console.log('\n=============================================================');
-    console.log(`[INDIAN SME RESEND OTP SERVICE]`);
+    console.log('[INDIAN SME RESEND OTP SERVICE]');
     console.log(`Target SME   : ${company.companyName}`);
     console.log(`Phone Number : ${company.phoneNumber}`);
     console.log(`>> RESENT OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
     console.log('=============================================================\n');
 
-    res.json({
+    return res.json({
       success: true,
       message: `A new OTP has been dispatched to ${company.phoneNumber}.`,
       businessEmail: company.businessEmail,

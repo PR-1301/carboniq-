@@ -57,7 +57,23 @@ import {
 } from 'lucide-react';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState('DASHBOARD'); // 'DASHBOARD' | 'DATA_UPLOAD' | 'DOCUMENTS' | 'ACTIVITIES' | 'MANUAL_ENTRY' | 'SUPPLIERS' | 'PLANNER' | 'SETTINGS'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('carboniq_workspace_active_tab');
+      const validTabs = ['DASHBOARD', 'DATA_UPLOAD', 'DOCUMENTS', 'ACTIVITIES', 'MANUAL_ENTRY', 'SUPPLIERS', 'PLANNER', 'SETTINGS'];
+      if (saved && validTabs.includes(saved)) {
+        return saved;
+      }
+    }
+    return 'DASHBOARD';
+  });
+
+  // Sync active workspace tab to localStorage so browser reload restores the exact same page
+  useEffect(() => {
+    if (activeTab && typeof window !== 'undefined') {
+      localStorage.setItem('carboniq_workspace_active_tab', activeTab);
+    }
+  }, [activeTab]);
   const [currentRoute, setCurrentRoute] = useState(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();

@@ -4,7 +4,6 @@ import {
   Target,
   FileText,
   Settings,
-  Plus,
   ChevronRight,
   Zap,
   Flame,
@@ -14,6 +13,9 @@ import {
   Route,
   TrendingDown,
   Building2,
+  FileSpreadsheet,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
 
 export function EnterpriseDashboard({
@@ -175,7 +177,7 @@ export function EnterpriseDashboard({
 
   return (
     <div className="space-y-6 animate-page-switch">
-      {/* Welcome Hero Bar */}
+      {/* Welcome Hero Bar (Duplicate upload button removed and replaced with Statutory ESG Report CTA & Baseline status) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
@@ -189,14 +191,25 @@ export function EnterpriseDashboard({
           </p>
         </div>
 
+        {/* Action area: Replaced duplicate upload button with Statutory ESG Report & Live Baseline pill */}
         <div className="flex items-center space-x-3">
+          <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#0b1b14] border border-[#62dd9e]/25 text-xs font-mono text-[#d8e6de] shadow-inner">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#62dd9e] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#62dd9e]"></span>
+            </span>
+            <span className="text-[10px] text-[#9aada2]">Baseline:</span>
+            <span className="text-[#b5f568] font-semibold text-[11px]">CEA v20.0</span>
+          </div>
+
           <button
             type="button"
-            onClick={onOpenUpload}
-            className="flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-mono font-bold bg-gradient-to-r from-[#b5f568] to-[#9ad84f] text-[#07130f] hover:shadow-[0_0_24px_rgba(181,245,104,0.45)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-md"
+            onClick={onOpenStatutoryReports}
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-mono font-bold bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/40 hover:bg-[#163825] hover:shadow-[0_0_20px_rgba(181,245,104,0.3)] hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer"
+            title="Generate Statutory SEBI BRSR and EU CBAM Disclosures"
           >
-            <Plus className="w-4 h-4 text-[#07130f]" />
-            <span>Upload Document</span>
+            <FileSpreadsheet className="w-4 h-4 text-[#b5f568]" />
+            <span>Generate ESG Report</span>
           </button>
         </div>
       </div>
