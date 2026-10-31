@@ -4,7 +4,6 @@ import {
   Eye,
   Edit3,
   RefreshCw,
-  Upload,
   AlertTriangle,
   CheckCircle2,
   Filter,
@@ -18,8 +17,6 @@ export function DocumentList({
   loading,
   onSelectDocument,
   onPreviewDocument,
-  onReuploadDocument,
-  onReprocessDocument,
 }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [relevanceFilter, setRelevanceFilter] = useState('');
@@ -239,24 +236,6 @@ export function DocumentList({
                           <span>
                             {doc.reviewStatus === 'APPROVED' ? 'Approved' : doc.reviewStatus === 'REJECTED' ? 'Rejected' : 'Review'}
                           </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onReuploadDocument(doc)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-slate-700 transition"
-                          title="Re-upload Clearer Replacement"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onReprocessDocument(doc)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
-                          title="Reprocess Extraction"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

@@ -9,6 +9,7 @@ import {
   LogOut,
   Building,
   Upload,
+  Sparkles,
 } from 'lucide-react';
 
 export function Navbar({
@@ -18,6 +19,8 @@ export function Navbar({
   company,
   onLogout,
   onOpenUpload,
+  currentRoute = 'MAIN',
+  onNavigate,
 }) {
   const isDbConnected = healthInfo?.databaseConnected;
   const isOcrConfigured = healthInfo?.ocrSpaceConfigured;
@@ -110,6 +113,26 @@ export function Navbar({
               <Database className="w-3.5 h-3.5" />
               <span>MongoDB: {isDbConnected ? 'Connected' : 'Offline'}</span>
             </div>
+
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={() =>
+                  currentRoute === 'EMISSION_FACTORS'
+                    ? onNavigate('MAIN', '/')
+                    : onNavigate('EMISSION_FACTORS', '/emission-factor-dataset')
+                }
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${
+                  currentRoute === 'EMISSION_FACTORS'
+                    ? 'bg-emerald-950 border-emerald-500 text-emerald-300 shadow-sm'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                }`}
+                title="View Verified Emission Factors Dataset"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{currentRoute === 'EMISSION_FACTORS' ? 'Back to App' : 'Emission Factors'}</span>
+              </button>
+            )}
 
             {company ? (
               <div className="flex items-center space-x-2">

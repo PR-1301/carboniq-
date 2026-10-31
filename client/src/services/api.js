@@ -183,3 +183,23 @@ export function getPreviewUrl(id) {
   const token = getAuthToken();
   return `${API_BASE}/documents/${id}/preview${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
+
+// Emission factor database endpoints
+export async function fetchEmissionFactors(params = {}) {
+  // Filter out undefined, null, or empty string values from query params
+  const cleanParams = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '' && value !== 'ALL') {
+      cleanParams[key] = value;
+    }
+  }
+  const query = new URLSearchParams(cleanParams).toString();
+  const url = query ? `${API_BASE}/emission-factors?${query}` : `${API_BASE}/emission-factors`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+export async function fetchEmissionFactorSummary() {
+  const res = await fetch(`${API_BASE}/emission-factors/summary`);
+  return res.json();
+}

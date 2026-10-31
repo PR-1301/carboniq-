@@ -7,6 +7,7 @@ import { ReuploadModal } from './components/ReuploadModal.jsx';
 import { ManualEntryModal } from './components/ManualEntryModal.jsx';
 import { ActivityRecordsList } from './components/ActivityRecordsList.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
+import { EmissionFactorDataset } from './components/EmissionFactorDataset.jsx';
 import {
   checkHealth,
   fetchDocuments,
@@ -32,6 +33,13 @@ import {
 
 export function App() {
   const [activeTab, setActiveTab] = useState('DOCUMENTS'); // 'DOCUMENTS' | 'MANUAL_ENTRY' | 'ACTIVITIES'
+  const [currentRoute, setCurrentRoute] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('emission-factor-dataset')) return 'EMISSION_FACTORS';
+    }
+    return 'MAIN';
+  });
   const [healthInfo, setHealthInfo] = useState(null);
   const [company, setCompany] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -113,6 +121,27 @@ export function App() {
     }
   }, [company]);
 
+  // Synchronize route with browser URL history
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('emission-factor-dataset')) {
+        setCurrentRoute('EMISSION_FACTORS');
+      } else {
+        setCurrentRoute('MAIN');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (route, path) => {
+    setCurrentRoute(route);
+    if (typeof window !== 'undefined' && window.history.pushState) {
+      window.history.pushState({}, '', path);
+    }
+  };
+
   const handleAuthenticated = (companyData, token) => {
     setAuthToken(token);
     setCompany(companyData);
@@ -163,11 +192,40 @@ export function App() {
     );
   }
 
+  // If user visits /emission-factor-dataset directly, render dataset
+  if (currentRoute === 'EMISSION_FACTORS') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          healthInfo={healthInfo}
+          company={company}
+          onLogout={handleLogout}
+          onOpenUpload={() => setShowWorkspaceUpload(true)}
+          currentRoute={currentRoute}
+          onNavigate={navigateTo}
+        />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <EmissionFactorDataset onBackToWorkspace={() => navigateTo('MAIN', '/')} />
+        </main>
+        <footer className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+          CarbonIQ &bull; Verified Emission Factors Dataset &bull; Local MongoDB
+        </footer>
+      </div>
+    );
+  }
+
   // If not logged in, show Indian SME Auth Modal (Registration & Login)
   if (!company) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-        <Navbar healthInfo={healthInfo} onRefresh={refreshHealth} />
+        <Navbar
+          healthInfo={healthInfo}
+          onRefresh={refreshHealth}
+          currentRoute={currentRoute}
+          onNavigate={navigateTo}
+        />
         <AuthModal onAuthenticated={handleAuthenticated} />
       </div>
     );
@@ -182,6 +240,8 @@ export function App() {
         company={company}
         onLogout={handleLogout}
         onOpenUpload={() => setShowWorkspaceUpload(true)}
+        currentRoute={currentRoute}
+        onNavigate={navigateTo}
       />
 
       {/* Database warning banner */}
@@ -265,8 +325,6 @@ export function App() {
                 loading={loadingDocs}
                 onSelectDocument={(doc) => setReviewDoc(doc)}
                 onPreviewDocument={handleOpenPreview}
-                onReuploadDocument={(doc) => setReuploadDoc(doc)}
-                onReprocessDocument={handleReprocess}
               />
             )}
           </div>
@@ -326,8 +384,6 @@ export function App() {
                 loading={loadingDocs}
                 onSelectDocument={(doc) => setReviewDoc(doc)}
                 onPreviewDocument={handleOpenPreview}
-                onReuploadDocument={(doc) => setReuploadDoc(doc)}
-                onReprocessDocument={handleReprocess}
               />
             )}
 

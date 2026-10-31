@@ -28,6 +28,20 @@ export function DocumentReviewModal({
 
   const isPermanentlyReviewed = document.reviewStatus === 'APPROVED' || document.reviewStatus === 'REJECTED';
 
+  // The document data is unclear / not discoverable if:
+  const isDataUnclearOrUndiscoverable =
+    !isPermanentlyReviewed && (
+      document.processingStatus === 'NEEDS_REVIEW' ||
+      document.processingStatus === 'FAILED' ||
+      document.reviewStatus === 'REQUIRED' ||
+      document.carbonRelevance === 'UNCERTAIN' ||
+      !document.extractedFields?.quantity ||
+      !document.extractedFields?.unit ||
+      Boolean(document.validationErrors && document.validationErrors.length > 0) ||
+      !document.extractedText ||
+      document.extractedText.trim().length === 0
+    );
+
   const [category, setCategory] = useState('ELECTRICITY');
   const [scope, setScope] = useState('SCOPE_2');
   const [activityDate, setActivityDate] = useState('');
@@ -192,21 +206,26 @@ export function DocumentReviewModal({
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => onTriggerReupload(document)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-950/50 hover:bg-amber-900/60 text-amber-300 border border-amber-700/50 transition"
-              title="Upload clearer version"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Re-upload Clearer</span>
-            </button>
-            <button
-              onClick={() => onTriggerReprocess(document)}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              title="Reprocess Extraction"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            {isDataUnclearOrUndiscoverable && (
+              <>
+                <button
+                  onClick={() => onTriggerReupload(document)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-600/60 transition shadow-sm"
+                  title="Document data is unclear or missing. Upload a clearer replacement."
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Re-upload Clearer</span>
+                </button>
+                <button
+                  onClick={() => onTriggerReprocess(document)}
+                  className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                  title="Data not discovered. Re-run Groq extraction."
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Re-extract</span>
+                </button>
+              </>
+            )}
             <button
               onClick={onClose}
               className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -300,6 +319,43 @@ export function DocumentReviewModal({
                   <span>
                     This document has been permanently <strong>{document.reviewStatus}</strong>. Decisions cannot be altered or re-evaluated.
                   </span>
+                </div>
+              )}
+
+              {/* Unclear or Undiscoverable Data Alert Banner */}
+              {!isPermanentlyReviewed && isDataUnclearOrUndiscoverable && (
+                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-600/50 text-amber-200 text-xs mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="font-semibold flex items-center space-x-1.5 text-amber-300">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                        <span>Data Unclear or Not Discovered</span>
+                      </div>
+                      <p className="text-amber-200/80 text-[11px] leading-relaxed">
+                        Required activity quantities could not be reliably extracted. If the original file is blurry or skewed, you can upload a clearer replacement or retry AI extraction.
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => onTriggerReupload(document)}
+                        className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs transition shadow-sm"
+                        title="Upload a clearer file replacement"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Re-upload</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onTriggerReprocess(document)}
+                        className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-medium text-xs transition"
+                        title="Retry extraction"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Re-extract</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

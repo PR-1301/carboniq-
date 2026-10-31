@@ -18,6 +18,7 @@ dist-ssr/
 # Local database storage & uploads
 data/
 */data/
+!server/src/data/
 server/uploads/documents/*
 !server/uploads/documents/.gitkeep
 server/uploads/temp/*
