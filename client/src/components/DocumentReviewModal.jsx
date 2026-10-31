@@ -116,9 +116,11 @@ export function DocumentReviewModal({
       wasteType,
       disposalMethod,
       supplierName,
+      description,
     });
     setSuggestedEmissions(calc);
-  }, [category, scope, quantity, unit, fuelType, transportMode, wasteType, disposalMethod, supplierName]);
+  }, [category, scope, quantity, unit, fuelType, transportMode, wasteType, disposalMethod, supplierName, description]);
+
 
   const getCategoryIcon = () => {
     if (category === 'WASTE') {
@@ -675,15 +677,15 @@ export function DocumentReviewModal({
                   <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
                     <div className="flex items-baseline space-x-2">
                       <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[#b5f568] drop-shadow-[0_0_12px_rgba(181,245,104,0.3)]">
-                        {suggestedEmissions.emissionsKg > 0
-                          ? `+${suggestedEmissions.emissionsKg.toLocaleString()}`
-                          : suggestedEmissions.emissionsKg.toLocaleString()}
+                        {(suggestedEmissions?.emissionsKg || 0) > 0
+                          ? `+${Number(suggestedEmissions?.emissionsKg || 0).toLocaleString()}`
+                          : Number(suggestedEmissions?.emissionsKg || 0).toLocaleString()}
                       </span>
                       <span className="text-xs font-bold text-[#b5f568] font-mono">kg CO₂e</span>
                       <span className="text-xs text-[#7dd9a3] font-mono">
-                        ({suggestedEmissions.emissionsTonnes > 0
+                        ({(suggestedEmissions?.emissionsTonnes || 0) > 0
                           ? `+${suggestedEmissions.emissionsTonnes}`
-                          : suggestedEmissions.emissionsTonnes} tCO₂e)
+                          : (suggestedEmissions?.emissionsTonnes || 0)} tCO₂e)
                       </span>
                     </div>
 
@@ -711,6 +713,40 @@ export function DocumentReviewModal({
                     </div>
                   </div>
 
+                  {/* Layer 2 EEIO Breakdown (Direct vs Upstream) */}
+                  {suggestedEmissions.directKg != null && suggestedEmissions.upstreamKg != null && (
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono p-2.5 rounded-xl bg-[#030c08] border border-[#62dd9e]/30">
+                      <div className="flex flex-col">
+                        <span className="text-[#71857c] text-[10px]">Direct Sector Footprint:</span>
+                        <span className="text-[#38bdf8] font-semibold">{Number(suggestedEmissions.directKg).toLocaleString()} kg CO₂e</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[#71857c] text-[10px]">Upstream Leontief Tier N:</span>
+                        <span className="text-[#62dd9e] font-semibold">{Number(suggestedEmissions.upstreamKg).toLocaleString()} kg CO₂e</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Layer 3 LCA Refinement Hotspot Alert */}
+                  {suggestedEmissions.isHotspotCandidate && (
+                    <div className="flex items-start space-x-2 text-[11px] text-amber-300 bg-[#14281c] border border-amber-500/50 p-2.5 rounded-xl font-mono">
+                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-amber-200">Layer 3 LCA Refinement Hotspot Candidate</div>
+                        <div className="text-[10px] text-amber-300/80 mt-0.5 leading-snug">
+                          This spend item exceeds Scope 3 Pareto thresholds. Replace financial proxy with supplier EPD (Environmental Product Declaration) or Bill of Materials when available.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sustainability Insight / Tip */}
+                  {suggestedEmissions.insights && !suggestedEmissions.isHotspotCandidate && (
+                    <div className="flex items-start space-x-2 text-[11px] text-[#7dd9a3] bg-[#0c2419] border border-[#62dd9e]/30 px-3 py-2 rounded-xl font-mono">
+                      <Sparkles className="w-3.5 h-3.5 text-[#b5f568] shrink-0 mt-0.5" />
+                      <span className="leading-snug">{suggestedEmissions.insights}</span>
+                    </div>
+                  )}
                   {/* Expandable Methodology Drawer */}
                   <div className="pt-0.5">
                     <button

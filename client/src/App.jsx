@@ -9,6 +9,7 @@ import { ManualEntryModal } from './components/ManualEntryModal.jsx';
 import { ActivityRecordsList } from './components/ActivityRecordsList.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
 import { EmissionFactorDataset } from './components/EmissionFactorDataset.jsx';
+import { StatutoryComplianceModal } from './components/StatutoryComplianceModal.jsx';
 import {
   checkHealth,
   fetchDocuments,
@@ -26,7 +27,9 @@ import {
   ArrowRight,
   Upload,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
+
 
 export function App() {
   const [activeTab, setActiveTab] = useState('DOCUMENTS'); // 'DOCUMENTS' | 'MANUAL_ENTRY' | 'ACTIVITIES'
@@ -54,6 +57,7 @@ export function App() {
   const [reviewDoc, setReviewDoc] = useState(null);
   const [reuploadDoc, setReuploadDoc] = useState(null);
   const [showWorkspaceUpload, setShowWorkspaceUpload] = useState(false);
+  const [showStatutoryModal, setShowStatutoryModal] = useState(false);
 
   const refreshHealth = async () => {
     try {
@@ -350,6 +354,16 @@ export function App() {
           <div className="flex items-center space-x-2">
             <button
               type="button"
+              onClick={() => setShowStatutoryModal(true)}
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-full text-xs font-mono font-semibold bg-[#121e1a] hover:bg-[#162720] text-[#62dd9e] border border-[#62dd9e]/40 hover:border-[#b5f568] transition-all shadow-md cursor-pointer"
+              title="Export statutory reports compliant with SEBI BRSR Core and EU CBAM"
+            >
+              <ShieldCheck className="w-4 h-4 text-[#b5f568]" />
+              <span>Export Statutory Reports (SEBI / CBAM)</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setShowWorkspaceUpload(!showWorkspaceUpload)}
               className="flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-mono font-semibold bg-gradient-to-r from-[#b5f568] to-[#9ad84f] text-[#07130f] hover:shadow-[0_0_20px_rgba(181,245,104,0.4)] transition-all active:scale-95 shadow-md cursor-pointer"
             >
@@ -358,6 +372,7 @@ export function App() {
             </button>
           </div>
         </div>
+
 
         {/* Stagger 2: Telemetry Metrics Summary KPI Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-2">
@@ -454,6 +469,7 @@ export function App() {
           </div>
         )}
 
+
         {/* Stagger 4: Active Tab Views */}
         <div
           id="workspace-tabs-content"
@@ -522,6 +538,14 @@ export function App() {
           loadActivities();
         }}
       />
+
+      {/* Statutory Compliance Export Modal (SEBI BRSR Core & EU CBAM) */}
+      <StatutoryComplianceModal
+        isOpen={showStatutoryModal}
+        onClose={() => setShowStatutoryModal(false)}
+        company={company}
+      />
+
 
       {/* Workspace Footer */}
       <footer className="border-t border-[#b4ffcd]/10 bg-[#06110d] py-6 text-center text-xs text-[#9aada2] font-mono">

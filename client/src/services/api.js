@@ -206,3 +206,42 @@ export async function calculateDocumentEmissions(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+// Statutory Compliance & Export Endpoints
+export async function fetchStatutorySummary(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  const url = query ? `${API_BASE}/reports/summary?${query}` : `${API_BASE}/reports/summary`;
+  const res = await fetch(url, {
+    headers: getAuthHeaders(true),
+  });
+  return res.json();
+}
+
+export async function downloadStatutoryReport(endpoint, fallbackFilename) {
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}/reports/${endpoint}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Export failed' }));
+    throw new Error(err.error || 'Failed to download report');
+  }
+
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : fallbackFilename;
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
