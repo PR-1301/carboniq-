@@ -291,13 +291,14 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 | | Expandable methodology & factor provenance drawer | ✅ **COMPLETED** | `client/src/components/DocumentReviewModal.jsx` |
 | | Persisting verified emissions into MongoDB records | ✅ **COMPLETED** | `server/src/controllers/documentController.js` |
 | | Emissions columns in Document and Activity tables | ✅ **COMPLETED** | `client/src/components/DocumentList.jsx`, `ActivityRecordsList.jsx` |
-| **7. Hybrid IO & EEIO** | Full Leontief Inverse Matrix $(I - A)^{-1}$ for India | ❌ **NOT COMPLETED** | *Planned: `server/src/services/eeioService.js`* |
-| | 140 MOSPI / 163 EXIOBASE sector commodity vectors | ❌ **NOT COMPLETED** | *Planned: `server/src/models/EEIOSector.js`* |
-| | Wholesale Price Index (WPI) inflation deflator | ❌ **NOT COMPLETED** | *Planned: `server/src/utils/inflationDeflator.js`* |
-| | Automated GST/HSN code to EEIO sector disambiguator | ❌ **NOT COMPLETED** | *Planned: LLM/Regex HSN Crosswalk* |
-| **8. Hotspot & LCA**   | Automated Pareto 80/20 cumulative emission screening | ❌ **NOT COMPLETED** | *Planned: `server/src/services/hotspotService.js`* |
-| | High-uncertainty hotspot flagging in review modal | ❌ **NOT COMPLETED** | *Planned: UI Hotspot Badge* |
-| | Targeted LCA Refinement workflow (Bill of Materials) | ❌ **NOT COMPLETED** | *Planned: `HotspotRefinementModal.jsx`* |
+| **7. Hybrid IO & EEIO** | Full Leontief Inverse Multipliers $M = B(I - A)^{-1}$ for India (2024) | ✅ **COMPLETED** | `server/src/services/eeioService.js`, `seedExiobase.js` |
+| | 200 EXIOBASE Indian sector commodity vectors & metadata | ✅ **COMPLETED** | `server/src/models/EEIOSector.js`, `exiobase_multipliers.bin` |
+| | Numerical binary/JSON vector store decoupled from MongoDB | ✅ **COMPLETED** | `server/src/data/exiobase/exiobase_multipliers.json` |
+| | Automated HSN prefix / NLP keyword EEIO sector disambiguator | ✅ **COMPLETED** | `server/src/services/eeioService.js` |
+| | Direct vs Upstream Leontief Tier-N supply chain split | ✅ **COMPLETED** | `server/src/services/carbonCalculationService.js` |
+| **8. Hotspot & LCA**   | Pareto threshold candidate screening (>500 kg CO₂e or >₹1L) | ✅ **COMPLETED** | `server/src/services/eeioService.js` |
+| | High-uncertainty hotspot flagging in review modal UI | ✅ **COMPLETED** | `client/src/components/DocumentReviewModal.jsx` |
+| | Targeted LCA Refinement workflow (BOMs & EPDs) | 🔄 **IN PROGRESS** | *UI Hotspot trigger ready; BOM ingestion pending* |
 | | Supplier Primary Data Request portal & token links | ❌ **NOT COMPLETED** | *Planned: Supplier Self-Reporting Form* |
 | **9. Reporting & Goals**| SEBI BRSR Core format report generator | ❌ **NOT COMPLETED** | *Planned: BRSR PDF / Excel Export* |
 | | EU CBAM embedded emissions compliance export | ❌ **NOT COMPLETED** | *Planned: CBAM XML Exporter* |
@@ -317,9 +318,9 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 - **Scope & Relevance Determination:** Classifies operational documents into `SCOPE_1`, `SCOPE_2`, or `SCOPE_3` and tags irrelevant non-carbon files (e.g., payroll, internal memos).
 
 #### 3. Database Architecture & Seed Dataset (100% Complete)
-- **MongoDB Collections:** `emissionfactors`, `documents`, and `activityrecords` are indexed for sub-millisecond query execution.
-- **Authoritative Factors:** 149 pre-seeded factors covering CEA grid electricity (historical and regional), fossil fuels, biomass, commercial waste, and freight.
-- **Test Coverage:** Full 15-test verification suite passing with zero schema or pagination failures.
+- **MongoDB Collections:** `emissionfactors`, `documents`, `activityrecords`, and `eeiosectors` are indexed for sub-millisecond query execution.
+- **Authoritative Physical Factors:** 149 pre-seeded factors covering CEA grid electricity (historical and regional), fossil fuels, biomass, commercial waste, and freight.
+- **Test Coverage:** Full verification suite passing with zero schema or pagination failures.
 
 #### 4. Real-Time Document Review & Calculation UI (100% Complete)
 - **Suggested Carbon Emissions Panel:** Integrated directly at the bottom of `DocumentReviewModal.jsx`.
@@ -328,37 +329,24 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 - **Recycling Offset Display:** Recognizes recycling activities and renders green negative carbon offsets (avoided emissions).
 - **MongoDB Persistence:** Saves `carbonEmissions` onto `ActivityRecord` and `Document` models upon approval.
 
+#### 5. Layer 2 Spend-Based EEIO Engine (EXIOBASE 3.11.2) (100% Complete)
+- **Decoupled Numerical Encoding:** Precomputes Leontief direct and total inverse multipliers from EXIOBASE 3.11.2 (2024 pxp table for India) into a high-performance numerical Float64 binary (`exiobase_multipliers.bin`, 3.1 KB) and keyed JSON cache (`exiobase_multipliers.json`, 53.1 KB), completely avoiding storing 702 MB matrix files in MongoDB.
+- **MongoDB Metadata Taxonomy:** 200 Indian sectors seeded into `eeiosectors` collection with HSN code prefixes and search aliases.
+- **Direct vs. Upstream Decomposition:** Calculates direct supplier emissions ($E_{\text{direct}} = s \cdot b$) and upstream supply chain emissions ($E_{\text{upstream}} = E_{\text{total}} - E_{\text{direct}}$).
+- **Hotspot Screening:** Automatically flags financial transactions exceeding $500\text{ kg CO}_2\text{e}$ or $>₹1,00,000$ spend as Scope 3 Pareto hotspot candidates.
+- **Interactive UI Preview:** `DocumentReviewModal.jsx` displays the Layer 2 EXIOBASE badge, matched sector title, supply chain decomposition pills, and Layer 3 refinement alert banner.
+
 ---
 
-### 8.3 Detailed Breakdown: Modules Not Completed (Roadmap & Implementation Architecture)
+### 8.3 Detailed Breakdown: Remaining Modules (Roadmap)
 
-#### 1. Full Macroeconomic Leontief EEIO Model (Not Completed)
-- **Current State:** A single general spend multiplier ($0.00025\text{ kg CO}_2\text{e/₹}$) is used when physical units are absent.
+#### 1. Targeted Process LCA Refinement Protocol (Layer 3 - In Progress)
+- **Current State:** Hotspot candidates are automatically flagged in `DocumentReviewModal.jsx` and `eeioService.js`.
 - **Target State:**
-  - Ingest the **MOSPI 140-sector Indian Input-Output Transaction Table (IOTT)** and **EXIOBASE 3 India country matrix**.
-  - Invert the direct requirement matrix $(I - A)^{-1}$ to generate sector-specific total multipliers ($M = B(I - A)^{-1}$) across agriculture, chemicals, metals, logistics, and power.
-  - Implement a WPI inflation deflator to calibrate historical IO tables to current INR transaction dates.
-
-#### 2. Automated HSN / GSTIN Sector Crosswalk (Not Completed)
-- **Current State:** Invoices with supplier names and amounts are categorized into broad categories (`SUPPLIER_INVOICE`).
-- **Target State:**
-  - Extract the supplier's 2-to-6 digit Harmonized System of Nomenclature (HSN) or Service Accounting Code (SAC) from Indian tax invoices.
-  - Map HSN prefixes directly to the corresponding Leontief economic sector code (e.g. HSN `2710` $\rightarrow$ Petroleum Refineries, HSN `3102` $\rightarrow$ Nitrogenous Fertilizers).
-
-#### 3. Pareto 80/20 Hotspot Screening Engine (Not Completed)
-- **Current State:** Activity records are listed chronologically without cumulative cross-supplier prioritization.
-- **Target State:**
-  - Build a background aggregation service that ranks all suppliers by total annual Scope 3 footprint.
-  - Apply the Pareto 80% boundary rule: identify the top 20% suppliers driving 80% of emissions and flag them as **Major Emission Hotspots**.
-
-#### 4. Targeted Process LCA Refinement Protocol (Not Completed)
-- **Current State:** The user can only edit fields manually or approve the suggested spend proxy.
-- **Target State:**
-  - Provide a dedicated **"Refine Hotspot"** modal for flagged 80/20 suppliers.
-  - Allow the SME to input cradle-to-gate Bill of Materials (BOM) weights, sub-tier transport distances, or primary Environmental Product Declaration (EPD) emission intensities.
+  - Build a dedicated **"Refine Hotspot"** modal allowing the user to override financial spend proxies by attaching supplier Environmental Product Declarations (EPDs), Product Carbon Footprints (PCFs), or Bills of Materials (BOMs).
   - Provide a secure tokenized link for suppliers to self-report energy logs directly into the SME's accounting ledger.
 
-#### 5. Statutory Compliance & Export Generators (Not Completed)
+#### 2. Statutory Compliance & Export Generators (Not Completed)
 - **Current State:** Inventory data is visible in client dashboards and table views.
 - **Target State:**
   - Automated PDF/Excel export compliant with **SEBI BRSR Core** (Mandatory for top 1000 listed Indian entities and their SME value chain partners).
