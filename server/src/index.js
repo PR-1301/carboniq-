@@ -33,8 +33,8 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     database: states[dbState] || 'unknown',
     databaseConnected: dbState === 1,
-    groqConfigured: Boolean(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim()),
-    groqModel: process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
+    aiVisionConfigured: Boolean(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim()),
+    aiModel: process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
     ocrSpaceConfigured: Boolean(process.env.OCR_SPACE_API_KEY && process.env.OCR_SPACE_API_KEY.trim()),
     timestamp: new Date().toISOString(),
   });

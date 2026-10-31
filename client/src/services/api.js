@@ -245,3 +245,31 @@ export async function downloadStatutoryReport(endpoint, fallbackFilename) {
   window.URL.revokeObjectURL(url);
 }
 
+export async function downloadDocumentReportPDF(id, originalFileName) {
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}/documents/${id}/report/pdf`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Export failed' }));
+    throw new Error(err.error || 'Failed to download document report');
+  }
+
+  const safeName = (originalFileName || 'document').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `${safeName}_Carbon_Certificate.pdf`;
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+

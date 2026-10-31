@@ -35,7 +35,7 @@ export async function extractRawContent(filePath, mimeType, originalFileName) {
       // If digital text is empty/sparse, it's likely a scanned PDF image
       const groqResult = await performGroqVisionExtraction(filePath, originalFileName, mimeType);
       return {
-        method: 'GROQ_VISION',
+        method: 'AI_MULTIMODAL_VISION',
         text: groqResult.text,
         confidence: groqResult.confidence,
         error: groqResult.error,
@@ -44,10 +44,10 @@ export async function extractRawContent(filePath, mimeType, originalFileName) {
         pageCount: 1,
       };
     } catch (err) {
-      // Fallback to Groq Vision if PDFParse fails
+      // Fallback to Vision AI if PDFParse fails
       const groqResult = await performGroqVisionExtraction(filePath, originalFileName, mimeType);
       return {
-        method: 'GROQ_VISION',
+        method: 'AI_MULTIMODAL_VISION',
         text: groqResult.text,
         confidence: groqResult.confidence,
         error: groqResult.error || err.message,
@@ -58,11 +58,11 @@ export async function extractRawContent(filePath, mimeType, originalFileName) {
     }
   }
 
-  // 2. Images (JPEG, PNG, JPG) - Processed with Groq Vision
+  // 2. Images (JPEG, PNG, JPG) - Processed with Multimodal AI Vision
   if (['.jpg', '.jpeg', '.png'].includes(ext) || mimeType.startsWith('image/')) {
     const groqResult = await performGroqVisionExtraction(filePath, originalFileName, mimeType);
     return {
-      method: 'GROQ_VISION',
+      method: 'AI_MULTIMODAL_VISION',
       text: groqResult.text,
       confidence: groqResult.confidence,
       error: groqResult.error,

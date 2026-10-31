@@ -23,8 +23,9 @@ import {
   ShieldCheck,
   TrendingDown,
   ExternalLink,
+  Download,
 } from 'lucide-react';
-import { getPreviewUrl, submitDocumentReview } from '../services/api.js';
+import { getPreviewUrl, submitDocumentReview, downloadDocumentReportPDF } from '../services/api.js';
 import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } from './StatusBadge.jsx';
 import { calculateLocalEmissions } from '../utils/carbonEmissionCalculator.js';
 
@@ -67,11 +68,25 @@ export function DocumentReviewModal({
   const [disposalMethod, setDisposalMethod] = useState('');
 
   const [saving, setSaving] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
   const [activeTab, setActiveTab] = useState('FIELDS'); // 'FIELDS' | 'TEXT'
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [suggestedEmissions, setSuggestedEmissions] = useState(null);
+
+  const handleDownloadPdf = async () => {
+    if (!document?._id) return;
+    try {
+      setDownloadingPdf(true);
+      await downloadDocumentReportPDF(document._id, document.originalFileName);
+    } catch (err) {
+      console.error('Failed to download document PDF certificate:', err);
+      alert(err.message || 'Failed to download certificate');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (document) {
@@ -798,23 +813,41 @@ export function DocumentReviewModal({
         </div>
 
         {/* Modal Actions Footer: Full-Width Pinned Footer Bar */}
-        <div className="p-4 sm:px-6 border-t-2 border-[#62dd9e]/30 bg-[#091f16] flex items-center justify-between shrink-0 z-20">
-          {isPermanentlyReviewed ? (
-            <div className="flex items-center space-x-2 text-[#7dd9a3] text-xs font-mono">
-              <Lock className="w-3.5 h-3.5 text-[#62dd9e]" />
-              <span>Permanent status: <strong className="text-white">{document.reviewStatus}</strong></span>
-            </div>
-          ) : (
+        <div className="p-4 sm:px-6 border-t-2 border-[#62dd9e]/30 bg-[#091f16] flex flex-wrap items-center justify-between gap-3 shrink-0 z-20">
+          <div className="flex items-center space-x-2.5">
+            {isPermanentlyReviewed ? (
+              <div className="flex items-center space-x-2 text-[#7dd9a3] text-xs font-mono mr-2">
+                <Lock className="w-3.5 h-3.5 text-[#62dd9e]" />
+                <span>Permanent status: <strong className="text-white">{document.reviewStatus}</strong></span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReject}
+                disabled={saving}
+                className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#2b0d11] hover:bg-[#3d1318] text-[#fca5a5] border border-rose-500/40 text-xs font-mono font-bold transition cursor-pointer"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Reject Document</span>
+              </button>
+            )}
+
+            {/* Individual Document Verification Certificate (PDF) */}
             <button
               type="button"
-              onClick={handleReject}
-              disabled={saving}
-              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#2b0d11] hover:bg-[#3d1318] text-[#fca5a5] border border-rose-500/40 text-xs font-mono font-bold transition cursor-pointer"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#12281e] hover:bg-[#1a382b] text-[#b5f568] hover:text-white border border-[#b5f568]/40 hover:border-[#b5f568] text-xs font-mono font-semibold transition shadow-md cursor-pointer"
+              title="Download Individual Document GHG Verification Certificate (PDF)"
             >
-              <XCircle className="w-4 h-4" />
-              <span>Reject Document</span>
+              {downloadingPdf ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#b5f568]" />
+              ) : (
+                <Download className="w-3.5 h-3.5 text-[#b5f568]" />
+              )}
+              <span>Audit Certificate (PDF)</span>
             </button>
-          )}
+          </div>
 
           <div className="flex items-center space-x-2.5">
             <button

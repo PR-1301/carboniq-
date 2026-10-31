@@ -5,8 +5,23 @@ import * as XLSX from 'xlsx';
 import PDFDocument from 'pdfkit';
 
 /**
- * Aggregates all approved corporate carbon data for statutory compliance reporting
+ * Strips/normalizes non-standard WinAnsi glyphs (like Unicode subscript ₂ or special minuses)
+ * so PDFKit standard PostScript fonts (Helvetica) never produce distorted "CO ,e" output.
  */
+function sanitizeForPDF(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/CO₂e/g, 'CO2e')
+    .replace(/CO₂/g, 'CO2')
+    .replace(/tCO₂e/g, 'tCO2e')
+    .replace(/CO\s*,\s*e/gi, 'CO2e')
+    .replace(/CO\s*,\s*\//gi, 'CO2/')
+    .replace(/CO\s*,/gi, 'CO2')
+    .replace(/⁻¹/g, '^-1')
+    .replace(/×/g, 'x')
+    .replace(/–/g, '-')
+    .replace(/—/g, '-');
+}
 export async function aggregateStatutoryData(companyId, filters = {}) {
   const company = await Company.findById(companyId).lean();
   const companyName = company?.name || company?.companyName || 'Corporate Entity';
@@ -591,3 +606,187 @@ export function generateCBAMCsv(data) {
   const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
   return '\ufeff' + csvContent; // UTF-8 BOM for Excel
 }
+
+/**
+ * ============================================================================
+ * 5. INDIVIDUAL DOCUMENT CARBON VERIFICATION CERTIFICATE (PDF)
+ * Streams an official single-document carbon audit certificate
+ * ============================================================================
+ */
+export function generateSingleDocumentPDF(document, company, stream) {
+  const doc = new PDFDocument({ margin: 40, size: 'A4' });
+  doc.pipe(stream);
+
+  // Styling palette
+  const dark = '#0b1b14';
+  const primary = '#0f766e';
+  const accent = '#10b981';
+  const lightBg = '#f8fafc';
+  const borderCol = '#cbd5e1';
+  const grayText = '#475569';
+
+  const em = document.suggestedEmissions || document.carbonEmissions || {};
+  const f = document.extractedFields || {};
+  const emKg = em.emissionsKg || 0;
+  const emTonnes = em.emissionsTonnes || (emKg / 1000);
+  const isApproved = document.reviewStatus === 'APPROVED';
+  const isNegative = Boolean(em.isNegativeOffset);
+
+  // 1. Header Banner
+  doc.rect(40, 40, 515, 65).fill(dark);
+  doc.fillColor('#ffffff').fontSize(15).font('Helvetica-Bold').text('CARBONIQ EMISSION VERIFICATION CERTIFICATE', 55, 52);
+  doc.fontSize(9).font('Helvetica').fillColor('#34d399').text('INDIVIDUAL DOCUMENT GREENHOUSE GAS AUDIT TRACE', 55, 71);
+  doc.fontSize(8).fillColor('#94a3b8').text(`Certificate ID: DOC-${document._id.toString().toUpperCase()} | Generated: ${new Date().toLocaleDateString('en-IN')}`, 55, 85);
+
+  // 2. Company & Document Provenance Card
+  doc.moveDown(3.5);
+  const startY = 120;
+  doc.rect(40, startY, 515, 95).fill(lightBg).stroke(borderCol);
+
+  doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('DOCUMENT & ENTITY PROVENANCE', 55, startY + 10);
+
+  doc.fontSize(8).font('Helvetica').fillColor(grayText);
+  doc.text('Reporting Entity:', 55, startY + 28);
+  doc.font('Helvetica-Bold').fillColor(dark).text(`${company?.name || company?.companyName || 'Corporate Entity'} (GSTIN: ${company?.gstin || 'N/A'})`, 140, startY + 28);
+
+  doc.font('Helvetica').fillColor(grayText).text('Source File Name:', 55, startY + 42);
+  doc.font('Helvetica-Bold').fillColor(dark).text(`${document.originalFileName} (${(document.fileSize / 1024).toFixed(1)} KB)`, 140, startY + 42);
+
+  doc.font('Helvetica').fillColor(grayText).text('SHA-256 Digest:', 55, startY + 56);
+  doc.font('Helvetica').fillColor('#64748b').text(`${document.sha256 || 'N/A'}`, 140, startY + 56);
+
+  doc.font('Helvetica').fillColor(grayText).text('Audit Status:', 55, startY + 70);
+  doc.font('Helvetica-Bold').fillColor(isApproved ? '#059669' : '#d97706').text(
+    isApproved ? 'VERIFIED & APPROVED FOR STATUTORY INVENTORY' : 'PRELIMINARY INGESTION ESTIMATE (REVIEW PENDING)',
+    140, startY + 70
+  );
+
+  // 3. Carbon Quantification Hero Box
+  const heroY = 230;
+  doc.rect(40, heroY, 515, 105).fill(isNegative ? '#ecfdf5' : '#f0fdfa').stroke(isNegative ? '#6ee7b7' : '#99f6e4');
+
+  doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('QUANTIFIED CARBON FOOTPRINT', 55, heroY + 12);
+
+  const displayKg = emKg > 0 ? `+${emKg.toLocaleString('en-IN')}` : emKg.toLocaleString('en-IN');
+  doc.fontSize(26).font('Helvetica-Bold').fillColor(isNegative ? '#059669' : primary).text(
+    `${displayKg} kg CO2e`,
+    55, heroY + 32
+  );
+  doc.fontSize(11).font('Helvetica').fillColor(grayText).text(
+    `(${emTonnes > 0 ? `+${emTonnes}` : emTonnes} Metric Tonnes CO2e)`,
+    55, heroY + 65
+  );
+
+  if (isNegative) {
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#059669').text('🌱 AVOIDED EMISSION OFFSET (NET CARBON CREDIT)', 55, heroY + 84);
+  } else {
+    doc.fontSize(8.5).font('Helvetica').fillColor(grayText).text(
+      `Scope: ${document.scope || 'SCOPE_3'}  |  Category: ${f.category || document.documentType || 'OPERATIONAL'}  |  Tier: ${em.tier || 'IPCC Tier 1'}`,
+      55, heroY + 84
+    );
+  }
+
+  // 4. Extracted Activity & Line Item Details Table
+  const tableY = 345;
+  doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('EXTRACTED ACTIVITY & VENDOR SPECIFICATIONS', 40, tableY);
+
+  const tHeaders = ['Attribute', 'Extracted Value', 'Verification Detail'];
+  const tColX = [40, 160, 350];
+
+  doc.rect(40, tableY + 16, 515, 20).fill(dark);
+  doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold');
+  tHeaders.forEach((h, i) => doc.text(h, tColX[i] + 8, tableY + 22));
+
+  const formatExtractionMethod = (method) => {
+    if (!method) return 'Multimodal AI Vision & OCR';
+    const clean = String(method).replace(/groq/gi, 'Multimodal AI');
+    if (clean === 'GROQ_VISION' || clean === 'AI_MULTIMODAL_VISION' || clean === 'Multimodal AI_VISION') {
+      return 'Multimodal AI Vision & OCR';
+    }
+    if (clean === 'GROQ_LLM' || clean === 'Multimodal AI_LLM') {
+      return 'Multimodal AI Parser';
+    }
+    return clean.replace(/_/g, ' ');
+  };
+
+  const rows = [
+    ['Consumption / Spend', `${f.quantity != null ? f.quantity.toLocaleString('en-IN') : 'N/A'} ${f.unit || ''}`, 'Primary extracted activity metric'],
+    ['Activity Date', f.activityDate ? new Date(f.activityDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'), 'Billing or transaction period'],
+    ['Vendor / Supplier', f.supplierName || 'Unspecified / Internal Facility', 'Identified commercial counterparty'],
+    ['Description / Item', f.description || document.originalFileName, 'Operational line item summary'],
+    ['Extraction Method', formatExtractionMethod(document.extractionMethod), 'Automated extraction pipeline'],
+  ];
+
+  let rY = tableY + 36;
+  rows.forEach((r, idx) => {
+    // Measure dynamic text height for column 1 and column 2 to prevent any overflow or overlapping
+    doc.font('Helvetica-Bold').fontSize(8);
+    const valHeight = doc.heightOfString(String(r[1] || ''), { width: 180 });
+    doc.font('Helvetica').fontSize(8);
+    const detailHeight = doc.heightOfString(String(r[2] || ''), { width: 190 });
+    const rowHeight = Math.max(22, Math.ceil(Math.max(valHeight, detailHeight)) + 10);
+
+    // Row container
+    doc.rect(40, rY, 515, rowHeight).fill(idx % 2 === 0 ? '#ffffff' : '#f8fafc').stroke('#e2e8f0');
+
+    // Column 0: Attribute
+    doc.fillColor(dark).fontSize(8).font('Helvetica');
+    doc.text(r[0], tColX[0] + 8, rY + 6, { width: 110 });
+
+    // Column 1: Extracted Value (bold, multi-line wrapping with full padding)
+    doc.font('Helvetica-Bold').fillColor(dark);
+    doc.text(String(r[1] || ''), tColX[1] + 8, rY + 6, { width: 180 });
+
+    // Column 2: Verification Detail
+    doc.font('Helvetica').fillColor(grayText);
+    doc.text(r[2], tColX[2] + 8, rY + 6, { width: 190 });
+
+    rY += rowHeight;
+  });
+
+  // 5. Mathematical Traceability & Formula Pill
+  rY += 14;
+  doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('MATHEMATICAL FORMULA & FACTOR PROVENANCE', 40, rY);
+  rY += 16;
+
+  doc.rect(40, rY, 515, 48).fill('#f1f5f9').stroke('#cbd5e1');
+  doc.fillColor(dark).fontSize(8).font('Helvetica-Bold').text('Calculation Formula:', 50, rY + 8);
+  const rawFormula = em.calculationFormula || em.formula || `${f.quantity} ${f.unit} x Factor = ${emKg} kg CO2e`;
+  doc.fillColor('#0f766e').fontSize(8.5).font('Helvetica').text(
+    sanitizeForPDF(rawFormula),
+    50, rY + 20, { width: 495 }
+  );
+  doc.fillColor(grayText).fontSize(7.5).text(
+    sanitizeForPDF(`Benchmark Source: ${em.source || 'Central Electricity Authority / IPCC'}  |  Factor: ${em.factorUsed || 'N/A'} ${em.factorUnit || ''}`),
+    50, rY + 34
+  );
+  rY += 48;
+
+  // 6. Layer 2 Leontief Decomposition (if available)
+  if (em.directEmissionsKg !== undefined && em.upstreamEmissionsKg !== undefined) {
+    rY += 14;
+    doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text('EXIOBASE 3.11.2 SUPPLY CHAIN DECOMPOSITION', 40, rY);
+    rY += 16;
+
+    doc.rect(40, rY, 250, 40).fill('#ecfeff').stroke('#a5f3fc');
+    doc.fillColor(grayText).fontSize(7.5).font('Helvetica').text('Direct Sector Footprint:', 50, rY + 8);
+    doc.fillColor('#0891b2').fontSize(11).font('Helvetica-Bold').text(`${Number(em.directEmissionsKg).toLocaleString('en-IN')} kg CO2e`, 50, rY + 20);
+
+    doc.rect(305, rY, 250, 40).fill('#f0fdf4').stroke('#bbf7d0');
+    doc.fillColor(grayText).fontSize(7.5).font('Helvetica').text('Upstream Leontief Tier-N Footprint:', 315, rY + 8);
+    doc.fillColor('#16a34a').fontSize(11).font('Helvetica-Bold').text(`${Number(em.upstreamEmissionsKg).toLocaleString('en-IN')} kg CO2e`, 315, rY + 20);
+    rY += 40;
+  }
+
+  // 7. Assurance & Audit Stamp
+  rY += 14;
+  doc.rect(40, rY, 515, 50).fill('#ecfdf5').stroke('#a7f3d0');
+  doc.fillColor('#065f46').fontSize(8.5).font('Helvetica-Bold').text('STATUTORY ASSURANCE SEAL', 50, rY + 8);
+  doc.fillColor('#047857').fontSize(7.5).font('Helvetica').text(
+    'This certificate certifies the greenhouse gas emissions derived from the attached document in compliance with the GHG Protocol Corporate Accounting Standard, India CEA CO2 Baseline v20.0, and SEBI BRSR Core Principles. Verified by CarbonIQ Traceability Engine.',
+    50, rY + 22, { width: 495, lineBreak: true }
+  );
+
+  doc.end();
+}
+

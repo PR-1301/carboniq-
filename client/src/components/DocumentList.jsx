@@ -10,8 +10,10 @@ import {
   Search,
   ExternalLink,
   Sparkles,
+  Download,
 } from 'lucide-react';
 import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } from './StatusBadge.jsx';
+import { downloadDocumentReportPDF } from '../services/api.js';
 
 export function DocumentList({
   documents,
@@ -22,6 +24,20 @@ export function DocumentList({
   const [statusFilter, setStatusFilter] = useState('');
   const [relevanceFilter, setRelevanceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [downloadingDocId, setDownloadingDocId] = useState(null);
+
+  const handleDownloadDocPdf = async (doc, e) => {
+    e.stopPropagation();
+    try {
+      setDownloadingDocId(doc._id);
+      await downloadDocumentReportPDF(doc._id, doc.originalFileName);
+    } catch (err) {
+      console.error('Failed to download document PDF certificate:', err);
+      alert(err.message || 'Failed to download certificate');
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
 
   const filteredDocs = documents.filter((doc) => {
     if (statusFilter && doc.processingStatus !== statusFilter) return false;
@@ -238,6 +254,20 @@ export function DocumentList({
                           title="Preview Original Document"
                         >
                           <Eye className="w-3.5 h-3.5 text-[#62dd9e]" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleDownloadDocPdf(doc, e)}
+                          disabled={downloadingDocId === doc._id}
+                          className="p-2 rounded-xl bg-[#121e1a] hover:bg-[#16221d] text-[#62dd9e] hover:text-[#b5f568] border border-[#62dd9e]/30 hover:border-[#b5f568]/50 transition cursor-pointer"
+                          title="Download Carbon Footprint Certificate & Audit Report (PDF)"
+                        >
+                          {downloadingDocId === doc._id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#b5f568]" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
                         </button>
 
                         <button

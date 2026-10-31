@@ -21,7 +21,7 @@ The platform ingests unstructured operational and financial records—such as el
 [ Processing Pipeline ] ──► server/src/services/processingPipeline.js
     ├── 1. Sharp Image Compression (>1MB downsampled)
     ├── 2. SHA-256 Deduplication (Company-scoped collision check)
-    ├── 3. Groq Vision / LLM / pdf-parse text & tabular extraction
+    ├── 3. Multimodal Vision AI / LLM / pdf-parse text & tabular extraction
     ├── 4. Carbon Relevance & Scope Classifier (RELEVANT / IRRELEVANT / UNCERTAIN)
     ├── 5. Structured Field Normalization (Quantity, Unit, Fuel, Transport, Waste)
     └── 6. Automated Suggested Emission Computation (Pre-review snapshot)
@@ -235,7 +235,7 @@ Where:
 | **Backend Calculation Engine** | `server/src/services/carbonCalculationService.js` | Evaluates CEA grid baselines, fuel factors, recycling offsets, and spend proxies on the server. |
 | **Client Calculation Utility** | `client/src/utils/carbonEmissionCalculator.js` | Provides real-time reactive calculations in the browser as the user edits quantities or dropdowns. |
 | **Document Review Modal** | `client/src/components/DocumentReviewModal.jsx` | Renders the Suggested Carbon Emissions panel at the bottom of the review page with formula pill and methodology drawer. |
-| **Processing Pipeline** | `server/src/services/processingPipeline.js` | Ingests documents, extracts data with Groq Vision/LLM, and calculates initial `suggestedEmissions`. |
+| **Processing Pipeline** | `server/src/services/processingPipeline.js` | Ingests documents, extracts data with Multimodal Vision AI/LLM, and calculates initial `suggestedEmissions`. |
 | **Document Controller** | `server/src/controllers/documentController.js` | Persists `carbonEmissions` to `ActivityRecord` upon approval; exposes `POST /calculate-emissions`. |
 | **Activity Records List** | `client/src/components/ActivityRecordsList.jsx` | Tabular dashboard showing verified records, quantities, and calculated $\text{kg CO}_2\text{e}$. |
 | **Document List** | `client/src/components/DocumentList.jsx` | Displays ingested files with badge previews of suggested $\text{kg CO}_2\text{e}$. |
@@ -265,8 +265,8 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 | | ZIP Archive safe unzipping & decompression | ✅ **COMPLETED** | `server/src/services/archiveService.js` |
 | | Sharp Image Downsampling (>1MB auto-compress) | ✅ **COMPLETED** | `server/src/services/imageCompressionService.js` |
 | | Company-scoped SHA-256 collision deduplication | ✅ **COMPLETED** | `server/src/services/cryptoService.js` |
-| **2. Extraction & AI** | Groq Vision API (Llama 3.2 Vision) for scanned bills | ✅ **COMPLETED** | `server/src/services/groqService.js` |
-| | Groq LLM (Llama 3.3 70B) for text invoices | ✅ **COMPLETED** | `server/src/services/groqService.js` |
+| **2. Extraction & AI** | Multimodal Vision AI for scanned bills | ✅ **COMPLETED** | `server/src/services/groqService.js` |
+| | High-throughput LLM reasoning for text invoices | ✅ **COMPLETED** | `server/src/services/groqService.js` |
 | | Tabular CSV / Excel parsing with validation | ✅ **COMPLETED** | `server/src/services/extractionService.js` |
 | | Extracted field validation & confidence scoring | ✅ **COMPLETED** | `server/src/services/extractionService.js` |
 | **3. Classification** | Fast rule-based carbon relevance screening | ✅ **COMPLETED** | `server/src/services/classificationService.js` |
@@ -314,7 +314,7 @@ Below is the exhaustive, component-by-component audit of which system modules ar
 - **Image Pre-processing:** Leverages `sharp` to automatically downsample oversized images while maintaining OCR legibility.
 
 #### 2. Extraction & Intelligent Classification (100% Complete)
-- **Groq Vision / LLM Pipeline:** Automatically extracts line items, consumption quantities, units, supplier names, and billing periods from scanned images and PDFs.
+- **Multimodal Vision AI / LLM Pipeline:** Automatically extracts line items, consumption quantities, units, supplier names, and billing periods from scanned images and PDFs.
 - **Scope & Relevance Determination:** Classifies operational documents into `SCOPE_1`, `SCOPE_2`, or `SCOPE_3` and tags irrelevant non-carbon files (e.g., payroll, internal memos).
 
 #### 3. Database Architecture & Seed Dataset (100% Complete)

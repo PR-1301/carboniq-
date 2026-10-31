@@ -9,6 +9,7 @@ import {
   reprocessDocument,
   reviewDocument,
   calculateDocumentEmissionsHandler,
+  exportDocumentReportPDF,
 } from '../controllers/documentController.js';
 import { uploadMulti, uploadSingle } from '../middleware/uploadMiddleware.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
@@ -24,8 +25,10 @@ router.post('/upload-zip', uploadSingle, uploadZip);
 router.get('/', getDocuments);
 router.get('/:id', getDocumentById);
 router.get('/:id/preview', getDocumentPreview);
+router.get('/:id/report/pdf', exportDocumentReportPDF);
 router.post('/:id/reupload', uploadSingle, reuploadDocument);
 router.post('/:id/reprocess', reprocessDocument);
 router.patch('/:id/review', reviewDocument);
 
 export default router;
+

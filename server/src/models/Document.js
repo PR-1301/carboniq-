@@ -99,7 +99,7 @@ const DocumentSchema = new mongoose.Schema(
     },
     extractionMethod: {
       type: String,
-      enum: ['GROQ_VISION', 'GROQ_LLM', 'PDF_TEXT', 'OCR_SPACE', 'CSV_PARSER', 'EXCEL_PARSER', 'MANUAL', 'NONE'],
+      enum: ['AI_MULTIMODAL_VISION', 'AI_VISION', 'GROQ_VISION', 'GROQ_LLM', 'PDF_TEXT', 'OCR_SPACE', 'CSV_PARSER', 'EXCEL_PARSER', 'MANUAL', 'NONE'],
       default: 'NONE',
     },
     extractedText: {
