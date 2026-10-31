@@ -180,31 +180,6 @@ export function Navbar({
           {/* Right Action Cluster */}
           <div className="flex items-center space-x-3 text-xs">
             {/* Emission Factors Navigator (available on landing or dataset page, hidden in workspace) */}
-            {onNavigate && (!company || currentRoute !== 'WORKSPACE') && (
-              <button
-                type="button"
-                onClick={() =>
-                  currentRoute === 'EMISSION_FACTORS'
-                    ? onNavigate(company ? 'WORKSPACE' : 'LANDING', '/')
-                    : onNavigate('EMISSION_FACTORS', '/emission-factor-dataset')
-                }
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition border ${
-                  currentRoute === 'EMISSION_FACTORS'
-                    ? 'bg-[#121e1a] border-[#62dd9e] text-[#62dd9e] shadow-[0_0_12px_rgba(98,221,158,0.2)]'
-                    : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-[#b4ffcd]/12'
-                }`}
-                title="View Verified Emission Factors Dataset"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#62dd9e]" />
-                <span>
-                  {currentRoute === 'EMISSION_FACTORS'
-                    ? company
-                      ? 'Back to Workspace'
-                      : 'Home'
-                    : 'Factor Directory'}
-                </span>
-              </button>
-            )}
 
             {/* Public Auth Buttons (when logged out) */}
             {!company && onOpenAuth && (

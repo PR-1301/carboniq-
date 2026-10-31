@@ -469,7 +469,7 @@ export function App() {
 
   // 3. ROUTE: Authenticated SME Enterprise Intelligence Workspace (Sidebar + Topbar + Dashboard)
   return (
-    <div className="min-h-screen bg-[#06110d] text-[#d8e6de] flex font-sans selection:bg-[#b5f568] selection:text-[#102000] relative overflow-x-hidden">
+    <div className="h-screen bg-[#06110d] text-[#d8e6de] flex font-sans selection:bg-[#b5f568] selection:text-[#102000] relative overflow-hidden">
       {/* Mobile Sidebar Backdrop */}
       {sidebarOpen && (
         <div
@@ -480,11 +480,11 @@ export function App() {
 
       {/* Left Sidebar Navigation */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#06110d] border-r border-[#b4ffcd]/12 flex flex-col justify-between transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-[#06110d] border-r border-[#b4ffcd]/12 flex flex-col justify-between transition-transform duration-300 shrink-0 lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
-        <div className="flex flex-col flex-1 overflow-y-auto">
+        <div className="flex flex-col flex-1 overflow-y-auto min-h-0">
           {/* Brand Identity */}
           <div className="p-6 pb-5 border-b border-[#b4ffcd]/10 flex items-center justify-between">
             <div>
@@ -636,7 +636,7 @@ export function App() {
         </div>
 
         {/* Sidebar Footer Logout */}
-        <div className="p-3 border-t border-[#b4ffcd]/10">
+        <div className="p-3 border-t border-[#b4ffcd]/10 shrink-0">
           <button
             type="button"
             onClick={handleLogout}
@@ -649,9 +649,9 @@ export function App() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         {/* Top Header Bar */}
-        <header className="h-20 border-b border-[#b4ffcd]/12 bg-[#06110d]/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30">
+        <header className="h-20 border-b border-[#b4ffcd]/12 bg-[#06110d]/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
           {/* Left: Mobile hamburger & Interactive Company Pill (Opens Settings) */}
           <div className="flex items-center space-x-3">
             <button
@@ -1086,7 +1086,7 @@ export function App() {
         </main>
 
         {/* Global Workspace Footer */}
-        <footer className="border-t border-[#b4ffcd]/10 bg-[#06110d] py-6 text-center text-xs text-[#9aada2] font-mono mt-auto">
+        <footer className="border-t border-[#b4ffcd]/10 bg-[#06110d] py-6 text-center text-xs text-[#9aada2] font-mono mt-auto shrink-0">
           CarbonIQ Enterprise &bull; Corporate Greenhouse Gas Accounting & Statutory ESG Disclosures &bull; Indian SME Edition (₹ INR)
         </footer>
       </div>

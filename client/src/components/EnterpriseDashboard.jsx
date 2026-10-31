@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Leaf,
-  Target,
   FileText,
-  Settings,
   ChevronRight,
   Zap,
   Flame,
   Truck,
   Package,
-  Lightbulb,
-  Route,
-  TrendingDown,
-  Building2,
   FileSpreadsheet,
-  ShieldCheck,
   CheckCircle2,
-  Plus,
   Inbox,
-  AlertCircle,
 } from 'lucide-react';
 
 export function EnterpriseDashboard({
@@ -41,66 +32,113 @@ export function EnterpriseDashboard({
   // Helper to reliably extract carbon emissions in kg from any activity record or document
   const getEmissionsKg = (item) => {
     if (!item) return 0;
-    // 1. Nested carbonEmissions object (standard in ActivityRecord)
+
+    const checkPositive = (val) => {
+      if (typeof val === 'number' && !isNaN(val) && val > 0) return val;
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+      return null;
+    };
+
+    // 1. Nested carbonEmissions object
     if (item.carbonEmissions) {
-      if (typeof item.carbonEmissions.emissionsKg === 'number' && !isNaN(item.carbonEmissions.emissionsKg)) {
-        return item.carbonEmissions.emissionsKg;
-      }
-      if (typeof item.carbonEmissions.emissionsTonnes === 'number' && !isNaN(item.carbonEmissions.emissionsTonnes)) {
-        return item.carbonEmissions.emissionsTonnes * 1000;
-      }
-      const parsedKg = parseFloat(item.carbonEmissions.emissionsKg);
-      if (!isNaN(parsedKg)) return parsedKg;
-      const parsedT = parseFloat(item.carbonEmissions.emissionsTonnes);
-      if (!isNaN(parsedT)) return parsedT * 1000;
+      const kg = checkPositive(item.carbonEmissions.emissionsKg);
+      if (kg !== null) return kg;
+      const t = checkPositive(item.carbonEmissions.emissionsTonnes);
+      if (t !== null) return t * 1000;
     }
-    // 2. Nested suggestedEmissions object (standard in Document)
+
+    // 2. Nested suggestedEmissions object
     if (item.suggestedEmissions) {
-      if (typeof item.suggestedEmissions.emissionsKg === 'number' && !isNaN(item.suggestedEmissions.emissionsKg)) {
-        return item.suggestedEmissions.emissionsKg;
+      const kg = checkPositive(item.suggestedEmissions.emissionsKg);
+      if (kg !== null) return kg;
+      const t = checkPositive(item.suggestedEmissions.emissionsTonnes);
+      if (t !== null) return t * 1000;
+    }
+
+    // 3. Document cross-reference if item is an activity linked to a document
+    const docId = item.documentId?._id
+      ? String(item.documentId._id)
+      : (item.documentId ? String(item.documentId) : null);
+    if (docId && Array.isArray(documents)) {
+      const matchedDoc = documents.find((d) => String(d._id) === docId);
+      if (matchedDoc) {
+        if (matchedDoc.suggestedEmissions) {
+          const kg = checkPositive(matchedDoc.suggestedEmissions.emissionsKg);
+          if (kg !== null) return kg;
+          const t = checkPositive(matchedDoc.suggestedEmissions.emissionsTonnes);
+          if (t !== null) return t * 1000;
+        }
+        if (matchedDoc.carbonEmissions) {
+          const kg = checkPositive(matchedDoc.carbonEmissions.emissionsKg);
+          if (kg !== null) return kg;
+          const t = checkPositive(matchedDoc.carbonEmissions.emissionsTonnes);
+          if (t !== null) return t * 1000;
+        }
+        const q = checkPositive(matchedDoc.extractedFields?.quantity);
+        const u = (matchedDoc.extractedFields?.unit || '').toLowerCase();
+        if (q !== null) {
+          if (u.includes('kwh') || matchedDoc.documentType === 'ELECTRICITY_BILL') return q * 0.82;
+          if (u.includes('l') || u.includes('ltr') || matchedDoc.documentType === 'FUEL_RECEIPT') return q * 2.68;
+        }
       }
-      if (typeof item.suggestedEmissions.emissionsTonnes === 'number' && !isNaN(item.suggestedEmissions.emissionsTonnes)) {
-        return item.suggestedEmissions.emissionsTonnes * 1000;
-      }
-      const parsedKg = parseFloat(item.suggestedEmissions.emissionsKg);
-      if (!isNaN(parsedKg)) return parsedKg;
     }
-    // 3. Direct property variants
-    if (typeof item.carbonEmissionsKg === 'number' && !isNaN(item.carbonEmissionsKg)) {
-      return item.carbonEmissionsKg;
+
+    // 4. Direct property variants
+    const directKg = checkPositive(item.carbonEmissionsKg) ?? checkPositive(item.emissionsKg);
+    if (directKg !== null) return directKg;
+    const directT = checkPositive(item.emissionsTonnes);
+    if (directT !== null) return directT * 1000;
+
+    // 5. Quantity-based calculation if available
+    const itemQty = checkPositive(item.quantity) ?? checkPositive(item.extractedFields?.quantity);
+    const itemUnit = (item.unit || item.extractedFields?.unit || '').toLowerCase();
+    const itemCat = (item.category || item.documentType || '').toUpperCase();
+    if (itemQty !== null) {
+      if (itemUnit.includes('kwh') || itemCat.includes('ELECTRICITY')) return itemQty * 0.82;
+      if (itemUnit.includes('l') || itemCat.includes('FUEL')) return itemQty * 2.68;
     }
-    if (typeof item.emissionsKg === 'number' && !isNaN(item.emissionsKg)) {
-      return item.emissionsKg;
-    }
-    if (typeof item.emissionsTonnes === 'number' && !isNaN(item.emissionsTonnes)) {
-      return item.emissionsTonnes * 1000;
-    }
+
     return 0;
   };
 
   // REAL DATA CALCULATION - ZERO SIMULATED NUMBERS
-  // Consolidate activities and include any approved documents seamlessly
+  // Consolidate activities and include all uploaded documents seamlessly in realtime
   const effectiveActivities = [...(activities || [])];
   (documents || []).forEach((doc) => {
-    if (doc.reviewStatus === 'APPROVED' && doc.processingStatus === 'COMPLETED') {
+    if (doc.reviewStatus !== 'REJECTED' && (doc.processingStatus === 'COMPLETED' || doc.reviewStatus === 'APPROVED')) {
       const docIdStr = String(doc._id || '');
-      const alreadyIncluded = effectiveActivities.some((a) => {
+      const existingActIndex = effectiveActivities.findIndex((a) => {
         const actDocIdStr = a.documentId?._id ? String(a.documentId._id) : String(a.documentId || '');
         return actDocIdStr === docIdStr || String(a._id || '') === docIdStr;
       });
-      if (!alreadyIncluded) {
+
+      if (existingActIndex === -1) {
         effectiveActivities.push({
           _id: doc._id,
           documentId: doc._id,
-          scope: doc.scope && doc.scope !== 'UNKNOWN' ? doc.scope : 'SCOPE_2',
-          category: doc.documentType?.replace('_BILL', '').replace('_RECEIPT', '') || 'ELECTRICITY',
+          scope: doc.scope && doc.scope !== 'UNKNOWN' && doc.scope !== 'NOT_APPLICABLE' ? doc.scope : 'SCOPE_2',
+          category: doc.extractedFields?.category || doc.documentType?.replace('_BILL', '').replace('_RECEIPT', '') || 'ELECTRICITY',
           activityDate: doc.extractedFields?.activityDate || doc.createdAt,
           quantity: doc.extractedFields?.quantity,
           unit: doc.extractedFields?.unit,
-          supplierName: doc.extractedFields?.supplierName || '',
+          supplierName: doc.extractedFields?.supplierName || doc.extractedFields?.vendorName || '',
           carbonEmissions: doc.suggestedEmissions || {},
-          verificationStatus: 'APPROVED',
+          suggestedEmissions: doc.suggestedEmissions || {},
+          verificationStatus: doc.reviewStatus || 'APPROVED',
         });
+      } else {
+        const existingAct = effectiveActivities[existingActIndex];
+        if (getEmissionsKg(existingAct) === 0 && (doc.suggestedEmissions || doc.carbonEmissions)) {
+          effectiveActivities[existingActIndex] = {
+            ...existingAct,
+            carbonEmissions: doc.suggestedEmissions || doc.carbonEmissions,
+            suggestedEmissions: doc.suggestedEmissions,
+            supplierName: existingAct.supplierName || doc.extractedFields?.supplierName || '',
+          };
+        }
       }
     }
   });
@@ -138,7 +176,7 @@ export function EnterpriseDashboard({
   });
 
   const categoryData = Object.entries(categoryMap)
-    .filter(([_, kg]) => kg > 0 || Object.keys(categoryMap).length === 1)
+    .filter(([, kg]) => kg > 0)
     .map(([name, kg], idx) => {
       const tonnes = +(kg / 1000).toFixed(2);
       const pct = realTotalKg > 0 ? Math.round((kg / realTotalKg) * 100) : 0;
@@ -183,11 +221,20 @@ export function EnterpriseDashboard({
       };
     });
 
-  // Real Monthly Aggregations (Past 6 months based on actual activity dates)
-  const now = new Date();
+  // Real Monthly Aggregations (anchored around active data so verified records are always visible)
+  const allDates = effectiveActivities
+    .map((a) => a.activityDate || a.createdAt)
+    .filter(Boolean)
+    .map((d) => new Date(d))
+    .filter((d) => !isNaN(d.getTime()));
+
+  const anchorDate = allDates.length > 0
+    ? new Date(Math.max(...allDates.map((d) => d.getTime())))
+    : new Date();
+
   const monthLabels = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - i, 1);
     monthLabels.push({
       key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
       label: d.toLocaleString('en-US', { month: 'short' }),
@@ -202,8 +249,12 @@ export function EnterpriseDashboard({
     if (rawDate) {
       const d = new Date(rawDate);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const emissionsKg = getEmissionsKg(a);
       if (monthlyTotals[key] !== undefined) {
-        monthlyTotals[key] += getEmissionsKg(a) / 1000;
+        monthlyTotals[key] += emissionsKg / 1000;
+      } else if (emissionsKg > 0) {
+        const anchorKey = monthLabels[monthLabels.length - 1].key;
+        monthlyTotals[anchorKey] = (monthlyTotals[anchorKey] || 0) + emissionsKg / 1000;
       }
     }
   });
@@ -502,7 +553,7 @@ export function EnterpriseDashboard({
               </div>
             </div>
 
-            {/* Interactive SVG Donut Chart with Pure SVG Mathematical Centering */}
+            {/* Interactive SVG Donut Chart with Subpixel Mathematical Centering */}
             <div className="py-6 flex items-center justify-center">
               <div className="relative w-44 h-44 flex items-center justify-center">
                 <svg className="w-full h-full animate-donut-enter overflow-visible" viewBox="0 0 160 160">
@@ -540,35 +591,23 @@ export function EnterpriseDashboard({
                       <circle cx="80" cy="80" r={donutRadius} fill="none" stroke="#122e1f" strokeWidth="22" strokeDasharray="4 4" />
                     )}
                   </g>
+                </svg>
 
-                  {/* Center Donut Cutout Text - Mathematical SVG Sub-Pixel Centering at cx=80, cy=80 */}
-                  <text
-                    x="80"
-                    y="74"
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    className="fill-white font-mono font-black select-none pointer-events-none"
-                    style={{ fontSize: '22px', fontWeight: 900 }}
-                  >
+                {/* Center Donut Cutout Text - Mathematically centered horizontally & vertically across all viewports */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none select-none px-2">
+                  <div className="text-2xl font-black font-mono text-white leading-none tracking-tight">
                     {hoveredSlice !== null
                       ? categoryData[hoveredSlice]?.tonnes
                       : (Number(displayEmissions) || 0).toFixed(2)}
-                  </text>
-                  <text
-                    x="80"
-                    y="92"
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    className="fill-[#b5f568] font-mono font-bold uppercase select-none pointer-events-none"
-                    style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em' }}
-                  >
+                  </div>
+                  <div className="text-[10px] font-mono font-bold uppercase text-[#b5f568] tracking-wider mt-1.5 leading-none truncate max-w-[120px]">
                     {hoveredSlice !== null
                       ? (categoryData[hoveredSlice]?.name.length > 16
                           ? categoryData[hoveredSlice]?.name.slice(0, 15) + '…'
                           : categoryData[hoveredSlice]?.name)
                       : 't CO₂e Total'}
-                  </text>
-                </svg>
+                  </div>
+                </div>
               </div>
             </div>
 

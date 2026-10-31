@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Zap,
   Flame,
@@ -35,6 +35,44 @@ export function LandingPage({
   // 1. Orbital Telemetry Dial State
   const [orbitScope, setOrbitScope] = useState('ALL'); // 'ALL' | 'SCOPE_1' | 'SCOPE_2' | 'SCOPE_3'
   const [hoveredOrbitNode, setHoveredOrbitNode] = useState(null);
+
+  // Auto-cycle through radar telemetry categories with fixed duration (3.5s)
+  useEffect(() => {
+    const scopes = ['ALL', 'SCOPE_1', 'SCOPE_2', 'SCOPE_3'];
+    const timer = setInterval(() => {
+      setOrbitScope((current) => {
+        const nextIndex = (scopes.indexOf(current) + 1) % scopes.length;
+        return scopes[nextIndex];
+      });
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Scroll reveal observer for landing page elements
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+          }
+        });
+      },
+      {
+        threshold: 0.08,
+        rootMargin: '0px 0px -40px 0px',
+      }
+    );
+
+    const root = containerRef.current || document;
+    const elements = root.querySelectorAll('.reveal-on-scroll, .reveal-scale');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
 
   // 2. Expanded Scope Card in Architectural Breadth
   const [inspectedScope, setInspectedScope] = useState(null); // null | 'scope1' | 'scope2' | 'scope3' | 'pipeline'
@@ -358,7 +396,33 @@ export function LandingPage({
   ];
 
   return (
-    <div className="w-full relative overflow-hidden bg-[#06110d] selection:bg-[#b5f568] selection:text-[#102000] font-sans">
+    <div ref={containerRef} className="w-full relative overflow-hidden bg-[#06110d] selection:bg-[#b5f568] selection:text-[#102000] font-sans">
+      <style>{`
+        .reveal-on-scroll {
+          opacity: 0;
+          transform: translateY(32px);
+          transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: opacity, transform;
+        }
+        .reveal-on-scroll.revealed {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        .reveal-scale {
+          opacity: 0;
+          transform: scale(0.96) translateY(24px);
+          transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: opacity, transform;
+        }
+        .reveal-scale.revealed {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+        .reveal-delay-100 { transition-delay: 100ms; }
+        .reveal-delay-200 { transition-delay: 200ms; }
+        .reveal-delay-300 { transition-delay: 300ms; }
+        .reveal-delay-400 { transition-delay: 400ms; }
+      `}</style>
       {/* AMBIENT DYNAMIC ILLUMINATION & AUDIT GRID */}
       <div className="absolute inset-0 pointer-events-none z-0">
         <div className="absolute top-[-10rem] left-1/2 -translate-x-1/2 w-[54rem] h-[38rem] bg-gradient-to-b from-[#62dd9e]/15 via-[#b5f568]/10 to-transparent blur-3xl opacity-60" />
@@ -380,7 +444,7 @@ export function LandingPage({
       <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-14 pb-16 lg:pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Left Column: Crisp Narrative */}
-          <div className="lg:col-span-7 flex flex-col items-start gap-5">
+          <div className="lg:col-span-7 flex flex-col items-start gap-5 reveal-on-scroll">
             {/* Live Engine Beacon */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16221d]/90 backdrop-blur-md border border-[#b4ffcd]/15 hover:border-[#b5f568]/40 transition-colors">
               <span className="relative flex h-2 w-2">
@@ -466,7 +530,7 @@ export function LandingPage({
           </div>
 
           {/* Right Column: Orbital Telemetry Dial */}
-          <div className="lg:col-span-5 relative flex flex-col items-center justify-center">
+          <div className="lg:col-span-5 relative flex flex-col items-center justify-center reveal-on-scroll reveal-delay-200">
             {/* Scope Orbit Selector Tabs */}
             <div className="w-full max-w-[400px] flex items-center justify-between gap-1 p-1 mb-2.5 rounded-full bg-[#121e1a]/90 backdrop-blur-xl border border-white/[0.08] text-xs font-mono">
               <button
@@ -669,7 +733,7 @@ export function LandingPage({
       </section>
 
       {/* SECTION 2: ARCHITECTURAL BREADTH STRIP */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 reveal-on-scroll">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2 border-b border-[#b4ffcd]/10">
             <div>
@@ -692,7 +756,7 @@ export function LandingPage({
                 setInspectedScope(inspectedScope === 'scope1' ? null : 'scope1');
                 setActiveScopeTab('scope1');
               }}
-              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 ${
+              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 reveal-on-scroll reveal-delay-100 ${
                 inspectedScope === 'scope1' ? 'border-[#62dd9e] scope1-glow bg-[#16221d]/90' : ''
               }`}
             >
@@ -724,7 +788,7 @@ export function LandingPage({
                 setInspectedScope(inspectedScope === 'scope2' ? null : 'scope2');
                 setActiveScopeTab('scope2');
               }}
-              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 ${
+              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 reveal-on-scroll reveal-delay-200 ${
                 inspectedScope === 'scope2' ? 'border-[#b5f568] scope2-glow bg-[#16221d]/90' : ''
               }`}
             >
@@ -756,7 +820,7 @@ export function LandingPage({
                 setInspectedScope(inspectedScope === 'scope3' ? null : 'scope3');
                 setActiveScopeTab('scope3');
               }}
-              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 ${
+              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 reveal-on-scroll reveal-delay-300 ${
                 inspectedScope === 'scope3' ? 'border-[#7dd9a3] scope3-glow bg-[#16221d]/90' : ''
               }`}
             >
@@ -785,7 +849,7 @@ export function LandingPage({
             {/* Card 4 */}
             <div
               onClick={() => setInspectedScope(inspectedScope === 'pipeline' ? null : 'pipeline')}
-              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 ${
+              className={`telemetry-card p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 reveal-on-scroll reveal-delay-400 ${
                 inspectedScope === 'pipeline' ? 'border-[#b5f568] glow-lime-sm bg-[#16221d]/90' : ''
               }`}
             >
@@ -860,7 +924,7 @@ export function LandingPage({
       </section>
 
       {/* SECTION 3: THE PROBLEM SOLVED */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 reveal-on-scroll">
         <div className="flex flex-col gap-8">
           <div className="max-w-2xl">
             <span className="font-mono text-xs text-[#b5f568] uppercase tracking-widest font-semibold">
@@ -877,7 +941,7 @@ export function LandingPage({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative">
             <div className="hidden md:block absolute top-1/2 left-0 right-0 h-[2px] bg-gradient-to-r from-[#62dd9e]/10 via-[#b5f568]/30 to-[#62dd9e]/10 -translate-y-12 pointer-events-none z-0" />
 
-            <div className="telemetry-card p-5 rounded-2xl relative z-10 flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl relative z-10 flex flex-col justify-between group reveal-on-scroll reveal-delay-100">
               <div>
                 <div className="w-9 h-9 rounded-xl bg-[#121e1a] flex items-center justify-center text-[#62dd9e] font-mono text-xs font-bold mb-3 shadow-inner border border-[#62dd9e]/30">
                   01
@@ -902,7 +966,7 @@ export function LandingPage({
               </div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl relative z-10 flex flex-col justify-between border-[#b4ffcd]/25 group">
+            <div className="telemetry-card p-5 rounded-2xl relative z-10 flex flex-col justify-between border-[#b4ffcd]/25 group reveal-on-scroll reveal-delay-200">
               <div>
                 <div className="w-9 h-9 rounded-xl bg-[#b5f568]/15 flex items-center justify-center text-[#b5f568] font-mono text-xs font-bold mb-3 shadow-inner border border-[#b5f568]/40">
                   02
@@ -927,7 +991,7 @@ export function LandingPage({
               </div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl relative z-10 flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl relative z-10 flex flex-col justify-between group reveal-on-scroll reveal-delay-300">
               <div>
                 <div className="w-9 h-9 rounded-xl bg-[#121e1a] flex items-center justify-center text-[#62dd9e] font-mono text-xs font-bold mb-3 shadow-inner border border-[#62dd9e]/30">
                   03
@@ -955,304 +1019,14 @@ export function LandingPage({
       </section>
 
       {/* SECTION 4: PRODUCT PREVIEW DASHBOARD */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14" id="product-dashboard">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
-            <div>
-              <span className="font-mono text-xs text-[#62dd9e] uppercase tracking-widest font-semibold">
-                03 // Mission Control
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-0.5">
-                Real-time decarbonization telemetry.
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-1 bg-[#16221d]/80 p-1 rounded-full border border-white/[0.08]">
-              <button
-                type="button"
-                onClick={() => setDashboardPeriod('CY_2024')}
-                className={`px-3 py-1 rounded-full font-mono text-xs font-semibold transition-all duration-150 active:scale-95 ${
-                  dashboardPeriod === 'CY_2024'
-                    ? 'bg-[#06110d] text-[#b5f568] border border-[#b4ffcd]/25 shadow-sm'
-                    : 'text-[#9aada2] hover:text-white'
-                }`}
-              >
-                CY 2024
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardPeriod('TRAILING_12M')}
-                className={`px-3 py-1 rounded-full font-mono text-xs font-semibold transition-all duration-150 active:scale-95 ${
-                  dashboardPeriod === 'TRAILING_12M'
-                    ? 'bg-[#06110d] text-[#b5f568] border border-[#b4ffcd]/25 shadow-sm'
-                    : 'text-[#9aada2] hover:text-white'
-                }`}
-              >
-                Trailing 12M
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardPeriod('BASELINE_2022')}
-                className={`px-3 py-1 rounded-full font-mono text-xs font-semibold transition-all duration-150 active:scale-95 ${
-                  dashboardPeriod === 'BASELINE_2022'
-                    ? 'bg-[#06110d] text-[#b5f568] border border-[#b4ffcd]/25 shadow-sm'
-                    : 'text-[#9aada2] hover:text-white'
-                }`}
-              >
-                Baseline 2022
-              </button>
-            </div>
-          </div>
-
-          <div className="p-5 md:p-6 rounded-3xl bg-[#0b1b14]/90 backdrop-blur-2xl shadow-2xl border border-[#b4ffcd]/15 flex flex-col gap-5">
-            {/* 4 KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              <div className="p-3.5 rounded-xl bg-[#16221d]/70 border border-white/[0.06] flex flex-col">
-                <div className="flex items-center justify-between text-[#9aada2]">
-                  <span className="font-mono text-[9px] uppercase">Total Emissions</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#121e1a] text-[#b5f568] font-mono text-[9px] font-semibold">
-                    {activeMetrics.variance}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-mono text-2xl font-extrabold text-white">{activeMetrics.total}</span>
-                  <span className="font-mono text-xs text-[#62dd9e]">tCO₂e</span>
-                </div>
-                <span className="font-mono text-[9px] text-[#9aada2] mt-1">Ceiling: {activeMetrics.ceiling}</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#16221d]/70 border border-white/[0.06] flex flex-col">
-                <div className="flex items-center justify-between text-[#9aada2]">
-                  <span className="font-mono text-[9px] uppercase">Scope 1 (Direct)</span>
-                  <span className="font-mono text-[9px] text-[#62dd9e] font-semibold">{activeMetrics.scope1Share}</span>
-                </div>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-mono text-2xl font-extrabold text-white">{activeMetrics.scope1}</span>
-                  <span className="font-mono text-xs text-[#62dd9e]">tCO₂e</span>
-                </div>
-                <span className="font-mono text-[9px] text-[#9aada2] mt-1">Generators & Fleet</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#16221d]/70 border border-white/[0.06] flex flex-col">
-                <div className="flex items-center justify-between text-[#9aada2]">
-                  <span className="font-mono text-[9px] uppercase">Scope 2 (Power)</span>
-                  <span className="font-mono text-[9px] text-[#b5f568] font-semibold">{activeMetrics.scope2Share}</span>
-                </div>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-mono text-2xl font-extrabold text-white">{activeMetrics.scope2}</span>
-                  <span className="font-mono text-xs text-[#b5f568]">tCO₂e</span>
-                </div>
-                <span className="font-mono text-[9px] text-[#9aada2] mt-1">CEA Grid Baseline</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-[#16221d]/70 border border-white/[0.06] flex flex-col">
-                <div className="flex items-center justify-between text-[#9aada2]">
-                  <span className="font-mono text-[9px] uppercase">Scope 3 (Value Chain)</span>
-                  <span className="font-mono text-[9px] text-[#7dd9a3] font-semibold">{activeMetrics.scope3Share}</span>
-                </div>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-mono text-2xl font-extrabold text-white">{activeMetrics.scope3}</span>
-                  <span className="font-mono text-xs text-[#7dd9a3]">tCO₂e</span>
-                </div>
-                <span className="font-mono text-[9px] text-[#9aada2] mt-1">Freight & Suppliers</span>
-              </div>
-            </div>
-
-            {/* Trajectory & Categories */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              <div className="lg:col-span-8 p-5 rounded-2xl bg-[#16221d]/60 border border-white/[0.08] flex flex-col justify-between">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Monthly Emissions Trajectory</h4>
-                    <p className="text-[11px] text-[#9aada2]">
-                      {chartHoverMonth !== null ? (
-                        <span className="text-[#b5f568] font-mono font-semibold">
-                          {monthlyData[chartHoverMonth].month}: {monthlyData[chartHoverMonth].actual} tCO₂e actual ({monthlyData[chartHoverMonth].variance})
-                        </span>
-                      ) : (
-                        'Actual emissions vs SBTi 1.5°C Paris aligned target'
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 font-mono text-[10px]">
-                    <span className="flex items-center gap-1 text-white">
-                      <span className="w-2.5 h-0.5 bg-[#62dd9e]" /> Actual
-                    </span>
-                    <span className="flex items-center gap-1 text-[#b5f568]">
-                      <span className="w-2.5 h-0.5 border-t border-dashed border-[#b5f568]" /> Target
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full h-48 relative">
-                  <svg className="w-full h-full" fill="none" viewBox="0 0 700 220">
-                    <line stroke="#212c28" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="700" y1="40" y2="40" />
-                    <line stroke="#212c28" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="700" y1="90" y2="90" />
-                    <line stroke="#212c28" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="700" y1="140" y2="140" />
-                    <line stroke="#212c28" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="700" y1="190" y2="190" />
-
-                    <path
-                      d="M 30 70 L 90 74 L 150 78 L 210 82 L 270 90 L 330 96 L 390 102 L 450 110 L 510 118 L 570 125 L 630 134 L 680 142"
-                      opacity="0.8"
-                      stroke="#b5f568"
-                      strokeDasharray="6 6"
-                      strokeWidth="2"
-                    />
-
-                    <path
-                      d="M 30 65 L 90 70 L 150 62 L 210 88 L 270 94 L 330 82 L 390 108 L 450 114 L 510 126 L 570 138 L 630 148 L 680 160 L 680 200 L 30 200 Z"
-                      fill="url(#carbon-gradient-fill)"
-                      opacity="0.35"
-                    />
-
-                    <path
-                      d="M 30 65 L 90 70 L 150 62 L 210 88 L 270 94 L 330 82 L 390 108 L 450 114 L 510 126 L 570 138 L 630 148 L 680 160"
-                      stroke="#62dd9e"
-                      strokeLinecap="round"
-                      strokeWidth="3"
-                    />
-
-                    <circle cx="510" cy="126" fill="#b5f568" r="5" />
-                    <circle cx="510" cy="126" opacity="0.6" r="9" stroke="#b5f568" strokeWidth="1.5" />
-
-                    <defs>
-                      <linearGradient id="carbon-gradient-fill" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor="#62dd9e" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#06110d" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-
-                  <div className="flex justify-between font-mono text-[9px] text-[#9aada2] pt-1">
-                    {monthlyData.map((d, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onMouseEnter={() => setChartHoverMonth(idx)}
-                        onMouseLeave={() => setChartHoverMonth(null)}
-                        className={`px-1 rounded transition-colors ${
-                          chartHoverMonth === idx ? 'bg-[#b5f568] text-[#102000] font-bold' : 'hover:text-white'
-                        }`}
-                      >
-                        {d.month}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Category Breakdown */}
-              <div className="lg:col-span-4 p-5 rounded-2xl bg-[#16221d]/60 border border-white/[0.08] flex flex-col justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-white">Top Operational Contributors</h4>
-                  <p className="text-[11px] text-[#9aada2]">Footprint share by activity</p>
-                </div>
-
-                <div className="flex flex-col gap-3 my-3 font-mono text-xs">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-white">Commercial Grid</span>
-                      <span className="text-[#b5f568] font-bold">35%</span>
-                    </div>
-                    <div className="w-full bg-[#121e1a] rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-[#b5f568] h-full rounded-full w-[35%]" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-white">Road Logistics</span>
-                      <span className="text-[#62dd9e] font-bold">30%</span>
-                    </div>
-                    <div className="w-full bg-[#121e1a] rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-[#62dd9e] h-full rounded-full w-[30%]" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-white">Generator Fuel</span>
-                      <span className="text-[#7dd9a3] font-bold">21%</span>
-                    </div>
-                    <div className="w-full bg-[#121e1a] rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-[#7dd9a3] h-full rounded-full w-[21%]" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-white">Packaging</span>
-                      <span className="text-slate-400 font-bold">14%</span>
-                    </div>
-                    <div className="w-full bg-[#121e1a] rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-slate-500 h-full rounded-full w-[14%]" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#b4ffcd]/10 flex items-center justify-between text-[#9aada2] font-mono text-[9px]">
-                  <span>Operational Coverage: 100%</span>
-                  <span className="text-[#62dd9e] font-semibold">GHG Protocol</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Ingestion Ledger */}
-            <div className="flex flex-col gap-2 pt-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Live Ingestion Ledger</span>
-                <span className="text-[10px] text-[#b5f568] font-mono flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#b5f568] animate-pulse" /> Continuous Match
-                </span>
-              </div>
-
-              <div className="overflow-x-auto rounded-xl bg-[#06110d]/90 border border-white/[0.06]">
-                <table className="w-full text-left font-mono text-xs">
-                  <thead className="bg-[#121e1a] text-[#9aada2] uppercase text-[9px]">
-                    <tr>
-                      <th className="px-3 py-2">Activity</th>
-                      <th className="px-3 py-2">Scope</th>
-                      <th className="px-3 py-2">Quantity</th>
-                      <th className="px-3 py-2">Factor Citation</th>
-                      <th className="px-3 py-2 text-right">tCO₂e</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.05] text-slate-200 text-[11px]">
-                    <tr className="hover:bg-[#16221d] transition-colors">
-                      <td className="px-3 py-2 font-semibold text-white">Plant 1 HT Power Grid</td>
-                      <td className="px-3 py-2 text-slate-400">Scope 2</td>
-                      <td className="px-3 py-2">48,200 kWh</td>
-                      <td className="px-3 py-2 text-[#7dd9a3]">CEA v20.0 National</td>
-                      <td className="px-3 py-2 text-right font-bold text-[#b5f568]">35.04</td>
-                    </tr>
-                    <tr className="hover:bg-[#16221d] transition-colors">
-                      <td className="px-3 py-2 font-semibold text-white">Captive Generator Diesel</td>
-                      <td className="px-3 py-2 text-slate-400">Scope 1</td>
-                      <td className="px-3 py-2">2,400 L</td>
-                      <td className="px-3 py-2 text-[#7dd9a3]">MoEFCC Base</td>
-                      <td className="px-3 py-2 text-right font-bold text-[#62dd9e]">6.35</td>
-                    </tr>
-                    <tr className="hover:bg-[#16221d] transition-colors">
-                      <td className="px-3 py-2 font-semibold text-white">Finished Goods Haulage</td>
-                      <td className="px-3 py-2 text-slate-400">Scope 3</td>
-                      <td className="px-3 py-2">18,500 t.km</td>
-                      <td className="px-3 py-2 text-[#7dd9a3]">MoRTH Heavy Truck</td>
-                      <td className="px-3 py-2 text-right font-bold text-[#7dd9a3]">0.96</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* SECTION 5: HOW IT WORKS STEP TIMELINE */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14" id="how-it-works">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 reveal-on-scroll" id="how-it-works">
         <div className="flex flex-col gap-8">
           <div className="text-center max-w-2xl mx-auto">
             <span className="font-mono text-xs text-[#62dd9e] uppercase tracking-widest font-semibold">
-              04 // Workflow
+              03 // Workflow
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
               From raw documents to certified carbon clarity.
@@ -1260,7 +1034,7 @@ export function LandingPage({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-100">
               <div>
                 <span className="font-mono text-xl font-bold text-[#b5f568]">01</span>
                 <h3 className="text-sm font-bold text-white mt-2 group-hover:text-[#62dd9e]">Ingest</h3>
@@ -1269,7 +1043,7 @@ export function LandingPage({
               <div className="mt-3 pt-2 border-t border-[#b4ffcd]/10 font-mono text-[9px] text-[#7dd9a3]">• Multi-Format Intake</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-200">
               <div>
                 <span className="font-mono text-xl font-bold text-[#b5f568]">02</span>
                 <h3 className="text-sm font-bold text-white mt-2 group-hover:text-[#62dd9e]">Extract</h3>
@@ -1278,7 +1052,7 @@ export function LandingPage({
               <div className="mt-3 pt-2 border-t border-[#b4ffcd]/10 font-mono text-[9px] text-[#7dd9a3]">• Zero Rekeying</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-300">
               <div>
                 <span className="font-mono text-xl font-bold text-[#b5f568]">03</span>
                 <h3 className="text-sm font-bold text-white mt-2 group-hover:text-[#62dd9e]">Compute</h3>
@@ -1287,7 +1061,7 @@ export function LandingPage({
               <div className="mt-3 pt-2 border-t border-[#b4ffcd]/10 font-mono text-[9px] text-[#7dd9a3]">• Traceable Math</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-400">
               <div>
                 <span className="font-mono text-xl font-bold text-[#b5f568]">04</span>
                 <h3 className="text-sm font-bold text-white mt-2 group-hover:text-[#62dd9e]">Disclose</h3>
@@ -1300,13 +1074,13 @@ export function LandingPage({
       </section>
 
       {/* SECTION 6: INTERACTIVE SCOPE MECHANICS */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14" id="scope-mechanics">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 reveal-scale" id="scope-mechanics">
         <div className="p-5 md:p-8 rounded-3xl bg-[#0b1b14]/90 backdrop-blur-2xl shadow-2xl border border-[#b4ffcd]/20 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
             <div>
               <span className="font-mono text-xs text-[#62dd9e] uppercase tracking-widest font-semibold flex items-center gap-1.5">
                 <Compass className="w-3.5 h-3.5" />
-                05 // Scope Mechanics
+                04 // Scope Mechanics
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-0.5">
                 Statutory Scope Calculation Lab
@@ -1430,12 +1204,12 @@ export function LandingPage({
       </section>
 
       {/* SECTION 7: INTERACTIVE CALCULATION SIMULATOR */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14" id="interactive-simulator">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 reveal-scale" id="interactive-simulator">
         <div className="p-5 md:p-8 rounded-3xl bg-[#0b1b14]/90 backdrop-blur-2xl shadow-2xl border border-[#b4ffcd]/15 flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
             <div>
               <span className="font-mono text-xs text-[#b5f568] uppercase tracking-widest font-semibold">
-                06 // Calculator
+                05 // Calculator
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-0.5">
                 Simulate Emissions in Real Time
@@ -1552,11 +1326,11 @@ export function LandingPage({
       </section>
 
       {/* SECTION 8: ASYMMETRIC BENTO GRID CAPABILITIES */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14" id="capabilities">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 reveal-on-scroll" id="capabilities">
         <div className="flex flex-col gap-6">
           <div>
             <span className="font-mono text-xs text-[#b5f568] uppercase tracking-widest font-semibold">
-              07 // Capabilities
+              06 // Capabilities
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-0.5">
               Engineered for carbon clarity.
@@ -1564,7 +1338,7 @@ export function LandingPage({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-100">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-[#16a36a]/15 flex items-center justify-center text-[#62dd9e] mb-3 group-hover:scale-110 transition-transform">
                   <FileCheck2 className="w-5 h-5" />
@@ -1575,7 +1349,7 @@ export function LandingPage({
               <div className="pt-3 border-t border-[#b4ffcd]/10 font-mono text-[10px] text-[#b5f568]">Multimodal Pipeline</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-200">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-[#b5f568]/15 flex items-center justify-center text-[#b5f568] mb-3 group-hover:scale-110 transition-transform">
                   <Layers className="w-5 h-5" />
@@ -1586,7 +1360,7 @@ export function LandingPage({
               <div className="pt-3 border-t border-[#b4ffcd]/10 font-mono text-[10px] text-[#62dd9e]">GHG Compliant</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-300">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-[#7dd9a3]/15 flex items-center justify-center text-[#7dd9a3] mb-3 group-hover:scale-110 transition-transform">
                   <Database className="w-5 h-5" />
@@ -1597,7 +1371,7 @@ export function LandingPage({
               <div className="pt-3 border-t border-[#b4ffcd]/10 font-mono text-[10px] text-[#7dd9a3]">CEA & MoEFCC Sync</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-100">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-[#b5f568]/15 flex items-center justify-center text-[#b5f568] mb-3 group-hover:scale-110 transition-transform">
                   <Share2 className="w-5 h-5" />
@@ -1608,7 +1382,7 @@ export function LandingPage({
               <div className="pt-3 border-t border-[#b4ffcd]/10 font-mono text-[10px] text-[#b5f568]">EEIO & Hybrid LCA</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-200">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-[#16a36a]/15 flex items-center justify-center text-[#62dd9e] mb-3 group-hover:scale-110 transition-transform">
                   <ShieldCheck className="w-5 h-5" />
@@ -1619,7 +1393,7 @@ export function LandingPage({
               <div className="pt-3 border-t border-[#b4ffcd]/10 font-mono text-[10px] text-[#62dd9e]">Auditor Verified</div>
             </div>
 
-            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group">
+            <div className="telemetry-card p-5 rounded-2xl flex flex-col justify-between group reveal-on-scroll reveal-delay-300">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-[#7dd9a3]/15 flex items-center justify-center text-[#7dd9a3] mb-3 group-hover:scale-110 transition-transform">
                   <BarChart3 className="w-5 h-5" />
@@ -1634,7 +1408,7 @@ export function LandingPage({
       </section>
 
       {/* SECTION 9: STATUTORY GOVERNANCE */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 reveal-on-scroll">
         <div className="p-6 rounded-2xl bg-[#0b1b14]/70 border border-white/[0.08] flex flex-col gap-4">
           <div className="text-center">
             <span className="font-mono text-xs text-[#62dd9e] uppercase tracking-widest font-semibold">
@@ -1665,7 +1439,7 @@ export function LandingPage({
       </section>
 
       {/* SECTION 10: FAQ */}
-      <section className="relative z-10 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <section className="relative z-10 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-14 reveal-on-scroll">
         <div className="flex flex-col gap-5">
           <div className="text-center">
             <span className="font-mono text-xs text-[#b5f568] uppercase tracking-widest font-semibold">
@@ -1707,7 +1481,7 @@ export function LandingPage({
       </section>
 
       {/* SECTION 11: CALL TO ACTION BANNER */}
-      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 pb-20">
+      <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 pb-20 reveal-scale">
         <div className="relative overflow-hidden p-8 md:p-12 rounded-3xl bg-[#16221d]/60 backdrop-blur-2xl shadow-2xl border border-[#b4ffcd]/20 flex flex-col items-center text-center">
           <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[30rem] h-[20rem] bg-gradient-to-b from-[#62dd9e]/30 to-[#b5f568]/10 rounded-full blur-[130px] pointer-events-none" />
 
