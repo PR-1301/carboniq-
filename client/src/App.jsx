@@ -13,6 +13,7 @@ import { ActivityRecordsList } from './components/ActivityRecordsList.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
 import { EmissionFactorDataset } from './components/EmissionFactorDataset.jsx';
 import { StatutoryComplianceModal } from './components/StatutoryComplianceModal.jsx';
+import { StatutoryReportsSection } from './components/StatutoryReportsSection.jsx';
 import {
   checkHealth,
   fetchDocuments,
@@ -455,10 +456,14 @@ export function App() {
             <button
               type="button"
               onClick={() => {
-                setShowStatutoryModal(true);
+                setActiveTab('REPORTS');
                 setSidebarOpen(false);
               }}
-              className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold text-slate-300 hover:bg-white/[0.04] hover:text-white transition cursor-pointer"
+              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                activeTab === 'REPORTS'
+                  ? 'bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/40 shadow-[0_0_16px_rgba(181,245,104,0.2)]'
+                  : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
+              }`}
             >
               <FileText className="w-4 h-4 text-[#b5f568]" />
               <span>Reports (BRSR / CBAM)</span>
@@ -588,7 +593,7 @@ export function App() {
               onOpenUpload={() => setActiveTab('DATA_UPLOAD')}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onSelectDocument={(doc) => setReviewDoc(doc)}
-              onOpenStatutoryReports={() => setShowStatutoryModal(true)}
+              onOpenStatutoryReports={() => setActiveTab('REPORTS')}
               onLogout={handleLogout}
             />
           )}
@@ -741,7 +746,7 @@ export function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowStatutoryModal(true)}
+                  onClick={() => setActiveTab('REPORTS')}
                   className="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-[#122e1f] text-[#b5f568] border border-[#b5f568]/40 hover:shadow-[0_0_16px_rgba(181,245,104,0.3)] transition"
                 >
                   Generate Supplier Disclosure
@@ -885,6 +890,11 @@ export function App() {
               }}
             />
           )}
+
+          {/* VIEW: Statutory ESG Reporting & Compliance Section */}
+          {activeTab === 'REPORTS' && (
+            <StatutoryReportsSection company={company} />
+          )}
           </div>
         </main>
 
@@ -926,11 +936,7 @@ export function App() {
       />
 
       {/* Statutory Compliance Export Modal (SEBI BRSR Core & EU CBAM) */}
-      <StatutoryComplianceModal
-        isOpen={showStatutoryModal}
-        onClose={() => setShowStatutoryModal(false)}
-        company={company}
-      />
+      {/* Statutory reports now render as an in-page section under activeTab === "REPORTS" */}
     </div>
   );
 }
