@@ -86,7 +86,7 @@ export async function register(req, res) {
     console.log(`Target SME   : ${company.companyName}`);
     console.log(`Phone Number : ${company.phoneNumber}`);
     console.log(`Email        : ${company.businessEmail}`);
-    console.log(`👉 VERIFICATION OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
+    console.log(`>> VERIFICATION OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
     console.log('=============================================================\n');
 
     res.status(201).json({
@@ -94,6 +94,7 @@ export async function register(req, res) {
       message: `Registration initiated. An OTP has been dispatched to your contact phone number (${company.phoneNumber}). Please enter the OTP to activate your account.`,
       businessEmail: company.businessEmail,
       phoneNumber: company.phoneNumber,
+      otpCode: otp,
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -174,12 +175,15 @@ export async function resendOtp(req, res) {
     console.log(`[INDIAN SME RESEND OTP SERVICE]`);
     console.log(`Target SME   : ${company.companyName}`);
     console.log(`Phone Number : ${company.phoneNumber}`);
-    console.log(`👉 RESENT OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
+    console.log(`>> RESENT OTP CODE: [ ${otp} ] (Valid for 10 minutes)`);
     console.log('=============================================================\n');
 
     res.json({
       success: true,
       message: `A new OTP has been dispatched to ${company.phoneNumber}.`,
+      businessEmail: company.businessEmail,
+      phoneNumber: company.phoneNumber,
+      otpCode: otp,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -221,7 +225,7 @@ export async function login(req, res) {
       console.log(`[INDIAN SME LOGIN OTP DISPATCH]`);
       console.log(`Target SME   : ${company.companyName}`);
       console.log(`Phone Number : ${company.phoneNumber}`);
-      console.log(`👉 VERIFICATION OTP CODE: [ ${otp} ]`);
+      console.log(`>> VERIFICATION OTP CODE: [ ${otp} ]`);
       console.log('=============================================================\n');
 
       return res.status(403).json({
@@ -229,6 +233,7 @@ export async function login(req, res) {
         requiresOtp: true,
         businessEmail: company.businessEmail,
         phoneNumber: company.phoneNumber,
+        otpCode: otp,
         error: 'Phone number verification is pending. An OTP has been logged to the server console.',
       });
     }
@@ -288,7 +293,7 @@ export async function completeOnboarding(req, res) {
  */
 export async function updateProfile(req, res) {
   try {
-    const { companyName, industryType, businessSize, gstin, currency } = req.body;
+    const { companyName, businessEmail, phoneNumber, industryType, businessSize, gstin, currency } = req.body;
     const company = await Company.findById(req.company._id);
     if (!company) {
       return res.status(404).json({ success: false, error: 'Company account not found.' });
@@ -296,6 +301,19 @@ export async function updateProfile(req, res) {
 
     if (companyName && companyName.trim()) {
       company.companyName = companyName.trim();
+    }
+    if (businessEmail && businessEmail.trim()) {
+      const lowerEmail = businessEmail.toLowerCase().trim();
+      if (lowerEmail !== company.businessEmail) {
+        const emailExists = await Company.findOne({ businessEmail: lowerEmail, _id: { $ne: company._id } });
+        if (emailExists) {
+          return res.status(400).json({ success: false, error: 'This business email is already assigned to another enterprise account.' });
+        }
+        company.businessEmail = lowerEmail;
+      }
+    }
+    if (phoneNumber && phoneNumber.trim()) {
+      company.phoneNumber = phoneNumber.trim();
     }
     if (industryType) {
       company.industryType = industryType;
@@ -314,7 +332,7 @@ export async function updateProfile(req, res) {
 
     res.json({
       success: true,
-      message: 'Company profile and accounting boundaries updated successfully.',
+      message: 'Enterprise profile and statutory parameters updated successfully.',
       company: sanitizeCompany(company),
     });
   } catch (error) {

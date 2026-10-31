@@ -149,6 +149,7 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
 
   // OTP Verification
   const [otp, setOtp] = useState('');
+  const [demoOtp, setDemoOtp] = useState('');
   const [otpEmail, setOtpEmail] = useState('');
   const [otpPhone, setOtpPhone] = useState('');
 
@@ -185,6 +186,13 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
 
       setOtpEmail(res.businessEmail || businessEmail);
       setOtpPhone(res.phoneNumber || phoneNumber);
+      if (res.otpCode) {
+        setDemoOtp(res.otpCode);
+        console.log('%c======================================================', 'color: #b5f568;');
+        console.log('%c[CarbonIQ SME Portal] Registration OTP Dispatched', 'color: #b5f568; font-weight: bold; font-size: 14px;');
+        console.log(`%c>> Verification OTP Code: [ ${res.otpCode} ] (Valid for 10 min)`, 'color: #62dd9e; font-weight: bold; font-size: 16px; background: #0b1b14; padding: 4px 8px; border-radius: 4px;');
+        console.log('%c======================================================', 'color: #b5f568;');
+      }
       setView('OTP');
       setActivePhraseIdx(0);
       setInfoMessage('Verification code dispatched to your registered contact channel.');
@@ -228,6 +236,13 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
       if (!res.success) {
         throw new Error(res.error || 'Failed to resend code');
       }
+      if (res.otpCode) {
+        setDemoOtp(res.otpCode);
+        console.log('%c======================================================', 'color: #b5f568;');
+        console.log('%c[CarbonIQ SME Portal] Resent OTP Code', 'color: #b5f568; font-weight: bold; font-size: 14px;');
+        console.log(`%c>> Verification OTP Code: [ ${res.otpCode} ]`, 'color: #62dd9e; font-weight: bold; font-size: 16px; background: #0b1b14; padding: 4px 8px; border-radius: 4px;');
+        console.log('%c======================================================', 'color: #b5f568;');
+      }
       setInfoMessage('A fresh verification code has been dispatched.');
     } catch (err) {
       setError(err.message);
@@ -249,8 +264,15 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
       });
 
       if (!res.success) {
-        if (res.requiresVerification) {
+        if (res.requiresVerification || res.requiresOtp) {
           setOtpEmail(res.businessEmail || loginEmail);
+          if (res.otpCode) {
+            setDemoOtp(res.otpCode);
+            console.log('%c======================================================', 'color: #b5f568;');
+            console.log('%c[CarbonIQ SME Portal] Login Verification OTP', 'color: #b5f568; font-weight: bold; font-size: 14px;');
+            console.log(`%c>> Verification OTP Code: [ ${res.otpCode} ]`, 'color: #62dd9e; font-weight: bold; font-size: 16px; background: #0b1b14; padding: 4px 8px; border-radius: 4px;');
+            console.log('%c======================================================', 'color: #b5f568;');
+          }
           setView('OTP');
           setActivePhraseIdx(0);
           setInfoMessage('Verification pending. A code has been dispatched to your contact channel.');
@@ -688,7 +710,7 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
             {/* 3. OTP VERIFICATION FORM */}
             {view === 'OTP' && (
               <form onSubmit={handleOtpSubmit} className="space-y-4">
-                <div className="text-center py-2">
+                <div className="space-y-3 py-2">
                   <input
                     type="text"
                     maxLength={6}
@@ -698,6 +720,21 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                     className="w-full text-center text-3xl font-mono tracking-[0.5em] py-3.5 rounded-2xl bg-[#06110d]/90 border border-[#b4ffcd]/30 text-[#b5f568] focus:outline-none focus:border-[#b5f568] focus:shadow-[0_0_24px_rgba(181,245,104,0.3)] transition-all shadow-inner"
                   />
+                  {demoOtp && (
+                    <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#122e1f]/90 border border-[#b5f568]/40 text-xs font-mono text-[#d8e6de]">
+                      <div className="flex items-center space-x-2">
+                        <Sparkles className="w-3.5 h-3.5 text-[#b5f568]" />
+                        <span>OTP Code: <strong className="text-[#b5f568] tracking-widest">{demoOtp}</strong></span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOtp(demoOtp)}
+                        className="px-2.5 py-1 rounded-lg bg-[#b5f568] text-[#07130f] font-bold text-[10px] hover:shadow-[0_0_12px_rgba(181,245,104,0.5)] transition cursor-pointer"
+                      >
+                        Auto-fill
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-3 rounded-2xl bg-[#121e1a] border border-white/[0.06] text-xs text-[#9aada2] flex items-center justify-center gap-2 font-mono">

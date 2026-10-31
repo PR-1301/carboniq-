@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Building2,
+  Mail,
+  Phone,
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
   Save,
   ShieldCheck,
-  Globe2,
-  FileBadge,
+  CreditCard,
+  Layers,
   Sparkles,
 } from 'lucide-react';
 import { updateCompanyProfile } from '../services/api.js';
@@ -15,6 +17,8 @@ import { updateCompanyProfile } from '../services/api.js';
 export function CompanySettings({ company, onUpdateCompany }) {
   const [formData, setFormData] = useState({
     companyName: company?.companyName || '',
+    businessEmail: company?.businessEmail || '',
+    phoneNumber: company?.phoneNumber || '',
     businessSize: company?.businessSize || 'Small',
     industryType: company?.industryType || 'Manufacturing',
     gstin: company?.gstin || '',
@@ -25,11 +29,13 @@ export function CompanySettings({ company, onUpdateCompany }) {
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  // Sync if external company prop updates
+  // Sync when external company prop updates
   useEffect(() => {
     if (company) {
       setFormData({
         companyName: company.companyName || '',
+        businessEmail: company.businessEmail || '',
+        phoneNumber: company.phoneNumber || '',
         businessSize: company.businessSize || 'Small',
         industryType: company.industryType || 'Manufacturing',
         gstin: company.gstin || '',
@@ -41,6 +47,8 @@ export function CompanySettings({ company, onUpdateCompany }) {
 
   const hasChanges =
     formData.companyName !== (company?.companyName || '') ||
+    formData.businessEmail !== (company?.businessEmail || '') ||
+    formData.phoneNumber !== (company?.phoneNumber || '') ||
     formData.businessSize !== (company?.businessSize || 'Small') ||
     formData.industryType !== (company?.industryType || 'Manufacturing') ||
     formData.gstin !== (company?.gstin || '') ||
@@ -49,6 +57,8 @@ export function CompanySettings({ company, onUpdateCompany }) {
   const handleReset = () => {
     setFormData({
       companyName: company?.companyName || '',
+      businessEmail: company?.businessEmail || '',
+      phoneNumber: company?.phoneNumber || '',
       businessSize: company?.businessSize || 'Small',
       industryType: company?.industryType || 'Manufacturing',
       gstin: company?.gstin || '',
@@ -64,6 +74,14 @@ export function CompanySettings({ company, onUpdateCompany }) {
       setNotification({ type: 'error', text: 'Company Legal Name cannot be empty.' });
       return;
     }
+    if (!formData.businessEmail.trim()) {
+      setNotification({ type: 'error', text: 'Corporate Email cannot be empty.' });
+      return;
+    }
+    if (!formData.phoneNumber.trim()) {
+      setNotification({ type: 'error', text: 'Contact Phone Number cannot be empty.' });
+      return;
+    }
 
     setSaving(true);
     setNotification(null);
@@ -71,6 +89,8 @@ export function CompanySettings({ company, onUpdateCompany }) {
     try {
       const res = await updateCompanyProfile({
         companyName: formData.companyName.trim(),
+        businessEmail: formData.businessEmail.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
         businessSize: formData.businessSize,
         industryType: formData.industryType,
         gstin: formData.gstin.trim().toUpperCase(),
@@ -81,7 +101,7 @@ export function CompanySettings({ company, onUpdateCompany }) {
         onUpdateCompany(res.company);
         setNotification({
           type: 'success',
-          text: 'Company profile and accounting boundaries updated successfully.',
+          text: 'Enterprise details and accounting boundaries updated successfully.',
         });
         setTimeout(() => setNotification(null), 4000);
       } else {
@@ -93,7 +113,7 @@ export function CompanySettings({ company, onUpdateCompany }) {
     } catch (err) {
       setNotification({
         type: 'error',
-        text: 'Network error while updating company settings: ' + err.message,
+        text: 'Network error while updating settings: ' + err.message,
       });
     } finally {
       setSaving(false);
@@ -109,14 +129,14 @@ export function CompanySettings({ company, onUpdateCompany }) {
             <span>Company Profile & Accounting Boundaries</span>
           </h2>
           <p className="text-xs text-[#9aada2] font-mono mt-1">
-            Verified statutory parameters for statutory GHG Protocol, SEBI BRSR, and Central Electricity Authority accounting.
+            Configure your enterprise details, contact parameters, and statutory GHG accounting boundaries.
           </p>
         </div>
 
         {hasChanges && (
-          <div className="flex items-center space-x-2 animate-fade-in">
-            <span className="w-2 h-2 rounded-full bg-[#b5f568] animate-ping" />
-            <span className="text-[11px] font-mono text-[#b5f568]">Unsaved Modifications</span>
+          <div className="flex items-center space-x-2 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-[#b5f568]" />
+            <span className="text-[11px] font-mono text-[#b5f568] font-bold">Unsaved Changes</span>
           </div>
         )}
       </div>
@@ -147,7 +167,7 @@ export function CompanySettings({ company, onUpdateCompany }) {
       )}
 
       {/* Editable Form Card */}
-      <form onSubmit={handleSave} className="telemetry-card p-6 rounded-2xl border border-[#b4ffcd]/18 bg-[#0b1b14]/90 space-y-6">
+      <form onSubmit={handleSave} className="telemetry-card p-6 sm:p-7 rounded-2xl border border-[#b4ffcd]/18 bg-[#0b1b14]/90 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs font-mono">
           {/* Company Legal Name */}
           <div className="space-y-1.5">
@@ -165,7 +185,47 @@ export function CompanySettings({ company, onUpdateCompany }) {
               />
             </div>
             <span className="text-[10px] text-[#71857c]">
-              Appears on statutory ESG disclosure certificates and emission ledgers.
+              Appears on header navigation and statutory compliance certificates.
+            </span>
+          </div>
+
+          {/* Business Email */}
+          <div className="space-y-1.5">
+            <label className="text-[#9aada2] text-[10px] uppercase tracking-wider block font-bold">
+              Corporate Email Address <span className="text-[#b5f568]">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                required
+                value={formData.businessEmail}
+                onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
+                placeholder="e.g. esg@company.com"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.12] text-white focus:outline-none focus:border-[#b5f568] focus:ring-1 focus:ring-[#b5f568] transition"
+              />
+            </div>
+            <span className="text-[10px] text-[#71857c]">
+              Used for account recovery and official ESG audit correspondence.
+            </span>
+          </div>
+
+          {/* Contact Phone */}
+          <div className="space-y-1.5">
+            <label className="text-[#9aada2] text-[10px] uppercase tracking-wider block font-bold">
+              Official Contact Phone <span className="text-[#b5f568]">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                required
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                placeholder="+91 98765 43210"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#040a08] border border-white/[0.12] text-white focus:outline-none focus:border-[#b5f568] focus:ring-1 focus:ring-[#b5f568] transition"
+              />
+            </div>
+            <span className="text-[10px] text-[#71857c]">
+              Registered contact for two-factor verification dispatches.
             </span>
           </div>
 
@@ -202,13 +262,12 @@ export function CompanySettings({ company, onUpdateCompany }) {
               <option value="Manufacturing">Manufacturing & Fabrication</option>
               <option value="Engineering & Machinery">Engineering & Machinery</option>
               <option value="Food Processing & FMCG">Food Processing & Agri FMCG</option>
-              <option value="Logistics & Freight">Logistics, Fleet & Freight</option>
-              <option value="Textiles & Apparel">Textiles & Garment Manufacturing</option>
-              <option value="Chemical & Pharmaceuticals">Chemicals & Pharmaceuticals</option>
-              <option value="IT & Technology Services">IT & Technology Services</option>
-              <option value="Heavy Engineering">Heavy Engineering & Foundry</option>
-              <option value="Healthcare & Life Sciences">Healthcare & Diagnostics</option>
-              <option value="Retail & Wholesale">Retail & Wholesale Distribution</option>
+              <option value="Logistics">Logistics & Supply Chain</option>
+              <option value="Textiles">Textiles & Garment Manufacturing</option>
+              <option value="Chemicals">Chemicals & Pharmaceuticals</option>
+              <option value="Services">IT & Software Services</option>
+              <option value="Automotive">Automotive & Ancillary</option>
+              <option value="Other">Other Industrial Sector</option>
             </select>
             <span className="text-[10px] text-[#71857c]">
               Calibrates default Scope 1 & Scope 3 emission activity benchmarks.
@@ -218,7 +277,7 @@ export function CompanySettings({ company, onUpdateCompany }) {
           {/* GSTIN Identifier */}
           <div className="space-y-1.5">
             <label className="text-[#9aada2] text-[10px] uppercase tracking-wider block font-bold">
-              GSTIN Identifier (Optional for Micro)
+              GSTIN Identifier
             </label>
             <input
               type="text"

@@ -678,7 +678,7 @@ export function generateSingleDocumentPDF(document, company, stream) {
   );
 
   if (isNegative) {
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#059669').text('🌱 AVOIDED EMISSION OFFSET (NET CARBON CREDIT)', 55, heroY + 84);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#059669').text(' AVOIDED EMISSION OFFSET (NET CARBON CREDIT)', 55, heroY + 84);
   } else {
     doc.fontSize(8.5).font('Helvetica').fillColor(grayText).text(
       `Scope: ${document.scope || 'SCOPE_3'}  |  Category: ${f.category || document.documentType || 'OPERATIONAL'}  |  Tier: ${em.tier || 'IPCC Tier 1'}`,

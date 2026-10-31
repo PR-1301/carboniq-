@@ -21,6 +21,7 @@ import {
   getCompanyProfile,
   completeCompanyOnboarding,
   setAuthToken,
+  getAuthToken,
 } from './services/api.js';
 import {
   Database,
@@ -93,6 +94,12 @@ export function App() {
   };
 
   const loadProfile = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setCompany(null);
+      setAuthLoading(false);
+      return;
+    }
     setAuthLoading(true);
     try {
       const res = await getCompanyProfile();
@@ -100,9 +107,11 @@ export function App() {
         setCompany(res.company);
         setCurrentRoute((prev) => (prev === 'LANDING' ? 'WORKSPACE' : prev));
       } else {
+        setAuthToken(null);
         setCompany(null);
       }
     } catch (err) {
+      setAuthToken(null);
       setCompany(null);
     } finally {
       setAuthLoading(false);
@@ -408,18 +417,6 @@ export function App() {
             >
               <Users className="w-4 h-4 text-[#c084fc]" />
               <span>Suppliers</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                navigateTo('EMISSION_FACTORS', '/emission-factor-dataset');
-                setSidebarOpen(false);
-              }}
-              className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold text-slate-300 hover:bg-white/[0.04] hover:text-white transition cursor-pointer"
-            >
-              <Leaf className="w-4 h-4 text-[#62dd9e]" />
-              <span>Emissions Directory</span>
             </button>
 
             <button
