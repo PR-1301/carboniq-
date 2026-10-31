@@ -28,6 +28,7 @@ import {
 import { getPreviewUrl, submitDocumentReview, downloadDocumentReportPDF } from '../services/api.js';
 import { ProcessingStatusBadge, ReviewStatusBadge, RelevanceBadge, ScopeBadge } from './StatusBadge.jsx';
 import { calculateLocalEmissions } from '../utils/carbonEmissionCalculator.js';
+import { ReductionPlanner } from './ReductionPlanner.jsx';
 
 export function DocumentReviewModal({
   document,
@@ -809,6 +810,20 @@ export function DocumentReviewModal({
                 </div>
               )}
             </div>
+
+            {/* Decarbonization & Emission Reduction Planner */}
+            <ReductionPlanner
+              category={category}
+              scope={scope}
+              quantity={quantity}
+              unit={unit}
+              emissionsKg={suggestedEmissions?.emissionsKg || 0}
+              fuelType={fuelType}
+              transportMode={transportMode}
+              wasteType={wasteType}
+              disposalMethod={disposalMethod}
+              supplierName={supplierName}
+            />
           </div>
         </div>
 
