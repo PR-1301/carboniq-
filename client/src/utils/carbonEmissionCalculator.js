@@ -83,7 +83,9 @@ export function calculateLocalEmissions({
   wasteType = '',
   disposalMethod = '',
   supplierName = '',
+  description = '',
 }) {
+
   const numQty = parseFloat(quantity);
   const cleanUnit = (unit || '').trim().toLowerCase();
   const isCurrency = ['inr', 'rs', 'rs.', '₹', 'rupees'].includes(cleanUnit);

@@ -117,9 +117,11 @@ export function DocumentReviewModal({
       wasteType,
       disposalMethod,
       supplierName,
+      description,
     });
     setSuggestedEmissions(calc);
-  }, [category, scope, quantity, unit, fuelType, transportMode, wasteType, disposalMethod, supplierName]);
+  }, [category, scope, quantity, unit, fuelType, transportMode, wasteType, disposalMethod, supplierName, description]);
+
 
   const getCategoryIcon = () => {
     if (category === 'WASTE') {
@@ -680,11 +682,13 @@ export function DocumentReviewModal({
                             : 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300'
                         }`}
                       >
-                        {suggestedEmissions.emissionsKg > 0 ? `+${suggestedEmissions.emissionsKg.toLocaleString()}` : suggestedEmissions.emissionsKg.toLocaleString()}
+                        {(suggestedEmissions?.emissionsKg || 0) > 0
+                          ? `+${Number(suggestedEmissions?.emissionsKg || 0).toLocaleString()}`
+                          : Number(suggestedEmissions?.emissionsKg || 0).toLocaleString()}
                       </span>
                       <span className="text-xs font-medium text-slate-300">kg CO₂e</span>
                       <span className="text-xs text-slate-400 font-mono">
-                        ({suggestedEmissions.emissionsTonnes > 0 ? `+${suggestedEmissions.emissionsTonnes}` : suggestedEmissions.emissionsTonnes} tCO₂e)
+                        ({(suggestedEmissions?.emissionsTonnes || 0) > 0 ? `+${suggestedEmissions.emissionsTonnes}` : (suggestedEmissions?.emissionsTonnes || 0)} tCO₂e)
                       </span>
                     </div>
 
@@ -710,18 +714,19 @@ export function DocumentReviewModal({
                   </div>
 
                   {/* Layer 2 EEIO Breakdown (Direct vs Upstream) */}
-                  {suggestedEmissions.directKg !== undefined && (
+                  {suggestedEmissions.directKg != null && suggestedEmissions.upstreamKg != null && (
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-mono p-2 rounded-lg bg-slate-950/60 border border-slate-800">
                       <div className="flex flex-col">
                         <span className="text-slate-500 text-[10px]">Direct Sector Footprint:</span>
-                        <span className="text-cyan-300 font-semibold">{suggestedEmissions.directKg.toLocaleString()} kg CO₂e</span>
+                        <span className="text-cyan-300 font-semibold">{Number(suggestedEmissions.directKg).toLocaleString()} kg CO₂e</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-slate-500 text-[10px]">Upstream Leontief Tier N:</span>
-                        <span className="text-emerald-300 font-semibold">{suggestedEmissions.upstreamKg.toLocaleString()} kg CO₂e</span>
+                        <span className="text-emerald-300 font-semibold">{Number(suggestedEmissions.upstreamKg).toLocaleString()} kg CO₂e</span>
                       </div>
                     </div>
                   )}
+
 
                   {/* Layer 3 LCA Refinement Hotspot Alert */}
                   {suggestedEmissions.isHotspotCandidate && (
