@@ -1,5 +1,22 @@
 # CarbonIQ - Intelligent Enterprise Carbon Accounting Engine
 
+![Best UI/UX Award](https://img.shields.io/badge/🏆_Best_UI%2FUX_Award-Conscientia_'26_%40_IIST-gold?style=for-the-badge)
+
+🏆 **Winner of the Best UI/UX Award at Conscientia '26, IIST.**
+
+### 🧰 Tech Stack
+
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Yarn](https://img.shields.io/badge/Yarn-2C8EBB?style=for-the-badge&logo=yarn&logoColor=white)
+![Vision AI / LLM](https://img.shields.io/badge/Multimodal_Vision_AI-LLM-8A2BE2?style=for-the-badge)
+![EXIOBASE](https://img.shields.io/badge/EXIOBASE-3.11.2-0A7B83?style=for-the-badge)
+![GHG Protocol](https://img.shields.io/badge/GHG_Protocol-Compliant-2E7D32?style=for-the-badge)
+
 CarbonIQ is an automated, AI-driven corporate carbon accounting platform tailored for Indian Small and Medium Enterprises (SMEs) and their value chain partners. It bridges the gap between unstructured business documentation (utility bills, fuel receipts, logistics invoices, waste reports) and rigorous greenhouse gas reporting standards (GHG Protocol, CEA National Grid Benchmarks, SEBI BRSR Core, and EU CBAM).
 
 ---
