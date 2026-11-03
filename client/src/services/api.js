@@ -48,18 +48,32 @@ export async function checkHealth() {
 
 // Authentication endpoints
 export async function registerCompany(data) {
+  const email = (data.businessEmail || data.email || '').trim();
+  const payload = {
+    ...data,
+    businessEmail: email,
+    email: email,
+  };
   return safeFetchJson(`${API_BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 
 export async function verifyCompanyOtp(data) {
+  const email = (data.businessEmail || data.email || '').trim();
+  const otp = (data.otp || data.otpCode || data.code || '').toString().trim();
+  const payload = {
+    businessEmail: email,
+    email: email,
+    otp,
+    otpCode: otp,
+  };
   const json = await safeFetchJson(`${API_BASE}/auth/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   if (json.success && json.token) {
     setAuthToken(json.token);
@@ -68,18 +82,29 @@ export async function verifyCompanyOtp(data) {
 }
 
 export async function resendCompanyOtp(data) {
+  const email = (data.businessEmail || data.email || '').trim();
+  const payload = {
+    businessEmail: email,
+    email: email,
+  };
   return safeFetchJson(`${API_BASE}/auth/resend-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 
 export async function loginCompany(data) {
+  const email = (data.businessEmail || data.email || '').trim();
+  const payload = {
+    businessEmail: email,
+    email: email,
+    password: data.password,
+  };
   const json = await safeFetchJson(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   if (json.success && json.token) {
     setAuthToken(json.token);

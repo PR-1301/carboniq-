@@ -212,6 +212,7 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
     try {
       const res = await verifyCompanyOtp({
         businessEmail: otpEmail,
+        email: otpEmail,
         otp,
       });
 
@@ -232,7 +233,7 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
     setInfoMessage(null);
     setLoading(true);
     try {
-      const res = await resendCompanyOtp({ businessEmail: otpEmail });
+      const res = await resendCompanyOtp({ businessEmail: otpEmail, email: otpEmail });
       if (!res.success) {
         throw new Error(res.error || 'Failed to resend code');
       }
@@ -260,12 +261,16 @@ export function AuthModal({ onAuthenticated, initialView = 'REGISTER', onClose }
     try {
       const res = await loginCompany({
         email: loginEmail,
+        businessEmail: loginEmail,
         password: loginPassword,
       });
 
       if (!res.success) {
         if (res.requiresVerification || res.requiresOtp) {
           setOtpEmail(res.businessEmail || loginEmail);
+          if (res.phoneNumber) {
+            setOtpPhone(res.phoneNumber);
+          }
           if (res.otpCode) {
             setDemoOtp(res.otpCode);
             console.log('%c======================================================', 'color: #b5f568;');

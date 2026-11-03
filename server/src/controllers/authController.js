@@ -31,13 +31,13 @@ export async function register(req, res) {
   try {
     const {
       companyName,
-      businessEmail,
       phoneNumber,
       password,
       industryType,
       businessSize,
       gstin,
     } = req.body;
+    const businessEmail = req.body.businessEmail || req.body.email;
 
     if (!companyName || !businessEmail || !phoneNumber || !password || !industryType || !businessSize) {
       return res.status(400).json({
@@ -116,7 +116,8 @@ export async function register(req, res) {
  */
 export async function verifyOtp(req, res) {
   try {
-    const { businessEmail, otp } = req.body;
+    const businessEmail = req.body.businessEmail || req.body.email;
+    const otp = req.body.otp || req.body.otpCode || req.body.code;
 
     if (!businessEmail || !otp) {
       return res.status(400).json({
@@ -126,7 +127,7 @@ export async function verifyOtp(req, res) {
     }
 
     const cleanEmail = businessEmail.toLowerCase().trim();
-    const cleanOtp = otp.trim();
+    const cleanOtp = otp.toString().trim();
 
     // Check PendingRegistration first (new registrations)
     const pending = await PendingRegistration.findOne({ businessEmail: cleanEmail });
@@ -215,7 +216,7 @@ export async function verifyOtp(req, res) {
  */
 export async function resendOtp(req, res) {
   try {
-    const { businessEmail } = req.body;
+    const businessEmail = req.body.businessEmail || req.body.email;
     if (!businessEmail) {
       return res.status(400).json({ success: false, error: 'Business email is required.' });
     }
@@ -280,7 +281,8 @@ export async function resendOtp(req, res) {
  */
 export async function login(req, res) {
   try {
-    const { businessEmail, password } = req.body;
+    const businessEmail = req.body.businessEmail || req.body.email;
+    const { password } = req.body;
 
     if (!businessEmail || !password) {
       return res.status(400).json({
@@ -289,7 +291,8 @@ export async function login(req, res) {
       });
     }
 
-    const company = await Company.findOne({ businessEmail: businessEmail.toLowerCase().trim() });
+    const cleanEmail = businessEmail.toLowerCase().trim();
+    const company = await Company.findOne({ businessEmail: cleanEmail });
     if (!company) {
       return res.status(401).json({ success: false, error: 'Invalid business email or password.' });
     }
